@@ -16,11 +16,22 @@ import {
   hasBreakdown,
 } from "@/src/features/traces/components/ObservationMetadataBadgesTooltip";
 import { useTraceData } from "@/src/features/traces/contexts/TraceDataContext";
-import { useViewPreferences } from "@/src/features/traces/contexts/ViewPreferencesContext";
+import {
+  type TraceRenderContext,
+  useViewPreferences,
+} from "@/src/features/traces/contexts/ViewPreferencesContext";
 import { aggregateTraceMetrics } from "@/src/features/traces/fns/traceAggregation";
 import { cn } from "@/src/utils/tailwind";
 
 const MAX_VISIBLE_TAGS = 3;
+
+/** Frame of the header strip; its skeleton shares it so the strip height holds. */
+export function traceHeaderFrameClassName(traceContext: TraceRenderContext) {
+  return cn(
+    "shrink-0 border-b",
+    traceContext === "fullscreen" ? "px-3 pt-1 pb-1.5" : "px-2 py-2",
+  );
+}
 
 export function TraceHeader() {
   const { trace, observations, mergedScores } = useTraceData();
@@ -43,12 +54,7 @@ export function TraceHeader() {
   const hiddenTagCount = trace.tags.length - visibleTags.length;
 
   return (
-    <div
-      className={cn(
-        "shrink-0 border-b",
-        traceContext === "fullscreen" ? "px-3 pt-1 pb-1.5" : "px-2 py-2",
-      )}
-    >
+    <div className={traceHeaderFrameClassName(traceContext)}>
       <div className="flex flex-wrap items-center gap-4">
         {trace.latency != null && (
           <LatencyBadge latencySeconds={trace.latency} />
