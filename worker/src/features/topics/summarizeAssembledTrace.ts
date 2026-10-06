@@ -1,5 +1,6 @@
 import {
   ensureDefaultTopicFacets,
+  getTopicFacetVersion,
   isTopicsProjectEnabled,
   listTopicSummaries,
   TOPICS_TRANSCRIPT_VERSION,
@@ -10,6 +11,7 @@ import {
   topicProcessingConfigSchema,
   type TopicFacetVersion,
   type TopicSummary,
+  type TopicExecutionInput,
 } from "@langfuse/shared/topics";
 import { recordIncrement, type Transcript } from "@langfuse/shared/src/server";
 import { prepareAssembledTopicTranscript } from "./assembledTranscript";
@@ -17,6 +19,11 @@ import { embedTopicSummary, summarizeTopicTrace } from "./models";
 import { TopicsProviderUnavailable } from "./provider-error";
 import { mergeTopicModelUsage, topicSummaryOutputError } from "./summaryResult";
 import { getTopicsModelConfig } from "@langfuse/shared/topics/server";
+
+export type TopicProcessingScope = Pick<
+  Extract<TopicExecutionInput, { operation: "process" }>,
+  "projectId" | "facets" | "processingConfig" | "embeddingConfig"
+>;
 
 /**
  * Summarizes one trace from the transcript the batch job already assembled.
@@ -29,25 +36,56 @@ export async function summarizeAssembledTrace(input: {
   environment: string;
   traceName: string;
   transcript: Transcript | null;
+  scope?: TopicProcessingScope;
 }): Promise<"disabled" | "unchanged" | "summarized"> {
   if (!isTopicsProjectEnabled(input.projectId)) return "disabled";
+  if (input.scope && input.scope.projectId !== input.projectId)
+    throw new Error("Topics processing scope does not match its project.");
   let prepared: ReturnType<typeof prepareAssembledTopicTranscript> | undefined;
-  const models = getTopicsModelConfig();
+  const models = input.scope
+    ? {
+        summaryModel: input.scope.processingConfig.summaryModel,
+        embeddingModel: input.scope.embeddingConfig.embeddingModel,
+      }
+    : getTopicsModelConfig();
   if (!models.summaryModel || !models.embeddingModel)
     throw new TopicsProviderUnavailable(
       "Configure LANGFUSE_TOPICS_SUMMARY_MODEL and LANGFUSE_TOPICS_EMBEDDING_MODEL before processing Topics traces.",
       "authentication",
     );
-  const facets = await ensureDefaultTopicFacets(input.projectId);
-  const versions = facets.flatMap((facet) =>
-    facet.projectId === input.projectId ? facet.versions.slice(0, 1) : [],
-  );
-  const config = topicProcessingConfigSchema.parse({
-    summaryModel: models.summaryModel,
-  });
-  const embeddingConfig = topicEmbeddingConfigSchema.parse({
-    embeddingModel: models.embeddingModel,
-  });
+  const versions = input.scope
+    ? await Promise.all(
+        input.scope.facets.map(async ({ facetId, version }) => {
+          const facet = await getTopicFacetVersion(
+            input.projectId,
+            facetId,
+            version,
+          );
+          if (
+            !facet ||
+            facet.projectId !== input.projectId ||
+            facet.facetId !== facetId ||
+            facet.version !== version
+          )
+            throw new Error(
+              "The accepted Topics facet version is unavailable.",
+            );
+          return facet;
+        }),
+      )
+    : (await ensureDefaultTopicFacets(input.projectId)).flatMap((facet) =>
+        facet.projectId === input.projectId ? facet.versions.slice(0, 1) : [],
+      );
+  const config =
+    input.scope?.processingConfig ??
+    topicProcessingConfigSchema.parse({
+      summaryModel: models.summaryModel,
+    });
+  const embeddingConfig =
+    input.scope?.embeddingConfig ??
+    topicEmbeddingConfigSchema.parse({
+      embeddingModel: models.embeddingModel,
+    });
   const dimensions = embeddingConfig.embeddingDimensions;
   const timestamp = Date.parse(input.traceTimestamp);
   const timeRange = {

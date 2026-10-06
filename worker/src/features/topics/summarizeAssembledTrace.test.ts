@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Transcript } from "@langfuse/shared/src/server";
-import type { TopicFacet } from "@langfuse/shared/topics";
+import type { TopicFacet, TopicExecutionInput } from "@langfuse/shared/topics";
 
 const state = vi.hoisted(() => ({
   enabled: true,
   facets: vi.fn(),
+  version: vi.fn(),
   stored: vi.fn(),
   write: vi.fn(),
   summarize: vi.fn(),
@@ -18,6 +19,7 @@ vi.mock("@langfuse/shared/topics/server", () => ({
     embeddingModel: "eu.cohere.embed-v4:0",
   }),
   ensureDefaultTopicFacets: (...args: unknown[]) => state.facets(...args),
+  getTopicFacetVersion: (...args: unknown[]) => state.version(...args),
   listTopicSummaries: (...args: unknown[]) => state.stored(...args),
   writeTopicSummaries: (...args: unknown[]) => state.write(...args),
   TOPICS_TRANSCRIPT_VERSION: "shared-transcript-v2",
@@ -88,6 +90,7 @@ beforeEach(() => {
   state.summarize.mockReset();
   state.embed.mockReset();
   state.facets.mockResolvedValue([facet]);
+  state.version.mockReset().mockResolvedValue(facet.versions[0]);
   state.stored.mockResolvedValue([]);
   state.write.mockResolvedValue(undefined);
   state.summarize.mockResolvedValue({
@@ -104,6 +107,63 @@ beforeEach(() => {
 });
 
 describe("summarizeAssembledTrace", () => {
+  it("summarizes the accepted facet version and models after defaults change", async () => {
+    state.facets.mockResolvedValue([
+      {
+        ...facet,
+        versions: [
+          { ...facet.versions[0], version: 3, prompt: "A new prompt" },
+        ],
+      },
+    ]);
+    const scope: Pick<
+      Extract<TopicExecutionInput, { operation: "process" }>,
+      "projectId" | "facets" | "processingConfig" | "embeddingConfig"
+    > = {
+      projectId: "project-a",
+      facets: [{ facetId: "facet-1", version: 2 }],
+      processingConfig: {
+        summaryModel: "accepted-summary-model",
+        maxInputTokens: 120000,
+        maxOutputTokens: 512,
+      },
+      embeddingConfig: {
+        embeddingModel: "accepted-embedding-model",
+        embeddingDimensions: 1024,
+      },
+    };
+    await summarizeAssembledTrace({
+      projectId: "project-a",
+      traceId: "trace-1",
+      traceTimestamp: "2026-09-22T12:00:00.000Z",
+      environment: "default",
+      traceName: "agent-turn",
+      transcript,
+      scope,
+    });
+    expect(state.summarize).toHaveBeenCalledWith(
+      facet.versions[0],
+      expect.any(String),
+      scope.processingConfig,
+    );
+    expect(state.embed).toHaveBeenCalledWith(
+      "Export monthly sales.",
+      1024,
+      "accepted-embedding-model",
+    );
+    expect(state.write.mock.calls[0][0][0]).toMatchObject({
+      facetVersion: 2,
+      summaryModel: "accepted-summary-model",
+      embeddingModel: "accepted-embedding-model",
+    });
+    expect(state.version).toHaveBeenCalledExactlyOnceWith(
+      "project-a",
+      "facet-1",
+      2,
+    );
+    expect(state.facets).not.toHaveBeenCalled();
+  });
+
   it("leaves other projects untouched", async () => {
     state.enabled = false;
     await summarizeAssembledTrace({
@@ -114,6 +174,36 @@ describe("summarizeAssembledTrace", () => {
       traceName: "agent-turn",
       transcript,
     });
+    expect(state.facets).not.toHaveBeenCalled();
+    expect(state.summarize).not.toHaveBeenCalled();
+    expect(state.write).not.toHaveBeenCalled();
+  });
+
+  it("fails before inference when an accepted historical facet version is unavailable", async () => {
+    state.version.mockResolvedValue(null);
+    await expect(
+      summarizeAssembledTrace({
+        projectId: "project-a",
+        traceId: "trace-1",
+        traceTimestamp: "2026-09-22T12:00:00.000Z",
+        environment: "default",
+        traceName: "agent-turn",
+        transcript,
+        scope: {
+          projectId: "project-a",
+          facets: [{ facetId: "facet-1", version: 1 }],
+          processingConfig: {
+            summaryModel: "accepted-summary-model",
+            maxInputTokens: 120000,
+            maxOutputTokens: 512,
+          },
+          embeddingConfig: {
+            embeddingModel: "accepted-embedding-model",
+            embeddingDimensions: 1024,
+          },
+        },
+      }),
+    ).rejects.toThrow("The accepted Topics facet version is unavailable.");
     expect(state.facets).not.toHaveBeenCalled();
     expect(state.summarize).not.toHaveBeenCalled();
     expect(state.write).not.toHaveBeenCalled();
