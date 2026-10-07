@@ -93,7 +93,7 @@ export class CodeEvalExecutionError extends Error {
   }
 }
 
-type CodeBasedEvaluationDispatchResult =
+export type EvaluationDispatchResult =
   | {
       success: true;
       scores: CodeEvalScoreWithName[];
@@ -224,39 +224,73 @@ export async function runCodeBasedEvaluationDispatch(params: {
   metadata: Record<string, unknown>;
   evaluationContext?: EvalExecutionContext;
   writeTrace?: InternalTraceWriter;
-}): Promise<CodeBasedEvaluationDispatchResult> {
+}): Promise<EvaluationDispatchResult> {
+  return runEvaluationDispatch({
+    ...params,
+    environment: LangfuseInternalTraceEnvironment.CodeEval,
+    traceMetadata: { code_eval_source_code: params.version.sourceCode },
+    failureLabel: "Code eval execution failed",
+    dispatch: (payload) =>
+      params.dispatcher.dispatch({
+        scope: {
+          organizationId: params.organizationId,
+          projectId: params.projectId,
+          evaluatorId: params.evaluator.id,
+        },
+        runtime: { language: params.version.sourceCodeLanguage },
+        execution: { jobExecutionId: params.jobExecutionId },
+        code: { source: params.version.sourceCode },
+        payload,
+      }),
+  });
+}
+
+/**
+ * Shared execution core for evaluators that receive the code-eval payload and
+ * return `{ scores }`: builds the payload, runs `dispatch`, and records one
+ * internal trace for both outcomes. Dispatch errors are mapped to the
+ * user-visible shape; the result never throws.
+ */
+export async function runEvaluationDispatch(params: {
+  dispatch: (payload: CodeEvalPayload) => Promise<DispatchResult>;
+  projectId: string;
+  executionTraceId: string;
+  extractedVariables: ExtractedVariable[];
+  hasExperimentContext?: boolean;
+  traceName: string;
+  environment: LangfuseInternalTraceEnvironment;
+  metadata: Record<string, unknown>;
+  /** Trace-only metadata, e.g. the evaluator source or endpoint. */
+  traceMetadata?: Record<string, unknown>;
+  failureLabel: string;
+  evaluationContext?: EvalExecutionContext;
+  writeTrace?: InternalTraceWriter;
+}): Promise<EvaluationDispatchResult> {
   const payload = buildCodeEvalPayload({
     extractedVariables: params.extractedVariables,
     hasExperimentContext: params.hasExperimentContext ?? false,
   });
   const traceStartTime = new Date();
   let dispatchResult: DispatchResult | undefined;
+  const traceBase = {
+    projectId: params.projectId,
+    executionTraceId: params.executionTraceId,
+    traceStartTime,
+    traceName: params.traceName,
+    environment: params.environment,
+    payload,
+    evaluationContext: params.evaluationContext,
+  };
 
   try {
-    dispatchResult = await params.dispatcher.dispatch({
-      scope: {
-        organizationId: params.organizationId,
-        projectId: params.projectId,
-        evaluatorId: params.evaluator.id,
-      },
-      runtime: { language: params.version.sourceCodeLanguage },
-      execution: { jobExecutionId: params.jobExecutionId },
-      code: { source: params.version.sourceCode },
-      payload,
-    });
+    dispatchResult = await params.dispatch(payload);
 
     await writeCodeEvalTraceSafely({
       writeTrace: params.writeTrace,
       trace: buildCodeEvalTraceInput({
-        projectId: params.projectId,
-        executionTraceId: params.executionTraceId,
-        traceStartTime,
-        traceName: params.traceName,
-        payload,
+        ...traceBase,
         output: dispatchResult,
-        metadata: params.metadata,
-        evaluationContext: params.evaluationContext,
-        sourceCode: params.version.sourceCode,
+        metadata: { ...params.metadata, ...params.traceMetadata },
       }),
     });
 
@@ -284,17 +318,14 @@ export async function runCodeBasedEvaluationDispatch(params: {
     await writeCodeEvalTraceSafely({
       writeTrace: params.writeTrace,
       trace: buildCodeEvalTraceInput({
-        projectId: params.projectId,
-        executionTraceId: params.executionTraceId,
-        traceStartTime,
-        traceName: params.traceName,
-        payload,
+        ...traceBase,
         output: {
           ...(dispatchResult ? { result: dispatchResult } : {}),
           error: traceError,
         },
         metadata: {
           ...params.metadata,
+          ...params.traceMetadata,
           error_name: errorDetails.name,
           error_message: visibleError.message,
           error_code: errorCodeForTrace,
@@ -303,10 +334,8 @@ export async function runCodeBasedEvaluationDispatch(params: {
             : {}),
           error_retryable: errorDetails.retryable,
         },
-        evaluationContext: params.evaluationContext,
-        sourceCode: params.version.sourceCode,
         level: "ERROR",
-        statusMessage: `Code eval execution failed: ${visibleError.message}`,
+        statusMessage: `${params.failureLabel}: ${visibleError.message}`,
       }),
     });
 
@@ -324,11 +353,11 @@ function buildCodeEvalTraceInput(params: {
   executionTraceId: string;
   traceStartTime: Date;
   traceName: string;
+  environment: LangfuseInternalTraceEnvironment;
   payload: CodeEvalPayload;
   output: unknown;
   metadata: Record<string, unknown>;
   evaluationContext?: EvalExecutionContext;
-  sourceCode: string;
   level?: string;
   statusMessage?: string;
 }): InternalTraceWriteInput {
@@ -341,15 +370,12 @@ function buildCodeEvalTraceInput(params: {
     name: params.traceName,
     traceName: params.traceName,
     type: "SPAN",
-    environment: LangfuseInternalTraceEnvironment.CodeEval,
+    environment: params.environment,
     level: params.level ?? "DEFAULT",
     statusMessage: params.statusMessage,
     input: stringifyValue(params.payload),
     output: stringifyValue(params.output),
-    metadata: {
-      ...params.metadata,
-      code_eval_source_code: params.sourceCode,
-    },
+    metadata: params.metadata,
     evaluationContext: params.evaluationContext,
     source: INTERNAL_TRACE_EVENT_SOURCE,
   };
