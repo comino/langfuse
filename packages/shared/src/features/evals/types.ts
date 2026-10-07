@@ -17,6 +17,7 @@ export const EvalTemplateTypeEnum = {
   CODE: "CODE",
   DECISION_MODEL: "DECISION_MODEL",
   FACET: "FACET",
+  HTTP: "HTTP",
 } as const satisfies Record<EvalTemplateType, EvalTemplateType>;
 
 export const EvalTemplateSourceCodeLanguageEnum = {
@@ -108,10 +109,24 @@ export type EvalTemplateDecisionModel = EvalTemplate & {
   questions: unknown;
 };
 
+export type EvalTemplateHttp = EvalTemplate & {
+  type: typeof EvalTemplateType.HTTP;
+  prompt: null;
+  outputDefinition: null;
+  sourceCode: null;
+  sourceCodeLanguage: null;
+  httpUrl: string;
+  /** Stored request headers; secret values are encrypted at rest. */
+  httpRequestHeaders: unknown;
+  /** Encrypted HMAC signing secret. */
+  httpSecretKey: string | null;
+};
+
 export type EvalTemplateWithType =
   | EvalTemplateLlmAsAJudge
   | EvalTemplateCodeBased
-  | EvalTemplateDecisionModel;
+  | EvalTemplateDecisionModel
+  | EvalTemplateHttp;
 
 export const EvalTargetObject = {
   TRACE: "trace",

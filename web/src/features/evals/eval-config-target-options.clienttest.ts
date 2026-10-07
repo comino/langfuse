@@ -53,6 +53,7 @@ describe("eval config target behavior", () => {
       value: [
         LangfuseInternalTraceEnvironment.LLMJudge,
         LangfuseInternalTraceEnvironment.CodeEval,
+        LangfuseInternalTraceEnvironment.HttpEval,
         LangfuseInternalTraceEnvironment.NaturalLanguageFilter,
         "langfuse-prompt-experiment",
         "langfuse-evaluation",

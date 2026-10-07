@@ -33,6 +33,7 @@ export * from "./datasets/schemaTypes";
 export * from "./evalJobConfigCache";
 export * from "./evals/codeEvalDispatchers";
 export * from "./evals/codeEvalExecution";
+export * from "./evals/httpEvalExecution";
 export * from "./evals/evalExecutionMetadata";
 export * from "./evals/evalScoreIds";
 export * from "./evals/extractObservationVariables";

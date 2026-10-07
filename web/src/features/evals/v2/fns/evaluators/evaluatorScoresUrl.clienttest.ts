@@ -101,6 +101,7 @@ describe("evaluatorExecutionsUrl", () => {
       EvalTemplateTypeEnum.LLM_AS_JUDGE,
       LangfuseInternalTraceEnvironment.LLMJudge,
     ],
+    [EvalTemplateTypeEnum.HTTP, LangfuseInternalTraceEnvironment.HttpEval],
   ])(
     "forwards %s evaluators to their execution environment",
     (type, environment) => {

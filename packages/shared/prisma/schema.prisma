@@ -1088,6 +1088,12 @@ model EvaluatorVersion {
   sourceCodeLanguage EvaluatorSourceCodeLanguage? @map("source_code_language")
   questions          Json?
 
+  // HTTP evaluators. Secret header values and the signing secret are
+  // encrypted and hidden by the global Prisma omit (db.ts).
+  httpUrl            String? @map("http_url")
+  httpRequestHeaders Json?   @map("http_request_headers")
+  httpSecretKey      String? @map("http_secret_key")
+
   topicClusteringRuns TopicClusteringRun[]
 
   @@unique([evaluatorId, version(sort: Desc)])
@@ -1099,6 +1105,7 @@ enum EvalTemplateType {
   CODE
   DECISION_MODEL
   FACET
+  HTTP
 }
 
 enum EvalTemplateSourceCodeLanguage {

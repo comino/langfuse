@@ -14,6 +14,8 @@ The new data model is
 
 FACET evaluators are internal and must be excluded from user-facing evaluator and rule queries.
 
+HTTP evaluators call a user-configured endpoint and only run when `LANGFUSE_HTTP_EVAL_ENABLED=true`. Their encrypted header values and signing secret are hidden by the global Prisma omit in `packages/shared/src/db.ts`; only the worker delivery path opts back in. They are not exposed through the public API or legacy eval templates.
+
 Traces captured during the eval executions in the past only captured `job_configuration_id`.
 Only new runs capture `evaluator_id` and `evaluation_rule_id`.
 

@@ -86,6 +86,10 @@ export function toPublicEvaluatorType(type: EvalTemplateType) {
       throw new InvalidRequestError(
         "Decision-model evaluators are experimental and not available through the public API",
       );
+    case EvalTemplateType.HTTP:
+      throw new InvalidRequestError(
+        "HTTP evaluators are not available through the public API",
+      );
   }
 }
 
@@ -287,6 +291,11 @@ export function toPublicEvaluatorVersion(
   if (evaluatorType === EvalTemplateType.DECISION_MODEL) {
     throw new InvalidRequestError(
       "Decision-model evaluators are experimental and not available through the public API",
+    );
+  }
+  if (evaluatorType === EvalTemplateType.HTTP) {
+    throw new InvalidRequestError(
+      "HTTP evaluators are not available through the public API",
     );
   }
 

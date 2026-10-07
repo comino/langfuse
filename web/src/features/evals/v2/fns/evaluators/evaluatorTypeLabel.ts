@@ -11,5 +11,7 @@ export function evaluatorTypeLabel(type: EvalTemplateType): string {
       return "LLM as a judge";
     case EvalTemplateTypeEnum.FACET:
       return "Facet";
+    case EvalTemplateTypeEnum.HTTP:
+      return "HTTP";
   }
 }

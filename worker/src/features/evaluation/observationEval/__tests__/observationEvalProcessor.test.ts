@@ -52,6 +52,10 @@ vi.mock("../../codeBased", () => ({
   executeCodeBasedEvaluation: vi.fn(),
 }));
 
+vi.mock("../../httpBased", () => ({
+  executeHttpEvaluation: vi.fn(),
+}));
+
 // Mock logger
 vi.mock("@langfuse/shared/src/server", async () => {
   const actual = await vi.importActual("@langfuse/shared/src/server");
@@ -63,6 +67,7 @@ vi.mock("@langfuse/shared/src/server", async () => {
     ...actual,
     buildDeterministicEvalScoreIds,
     extractObservationVariables,
+    isHttpEvalEnabled: () => false,
     logger: {
       debug: vi.fn(),
       info: vi.fn(),
@@ -75,6 +80,7 @@ vi.mock("@langfuse/shared/src/server", async () => {
 
 import { prisma } from "@langfuse/shared/src/db";
 import { executeCodeBasedEvaluation } from "../../codeBased";
+import { executeHttpEvaluation } from "../../httpBased";
 import {
   createMockEvalExecutionDeps,
   type EvalExecutionDeps,
@@ -283,6 +289,35 @@ describe("processObservationEval", () => {
       ).mockResolvedValue(assignment);
       return job;
     };
+
+    it("cancels queued HTTP jobs without calling the endpoint while the feature is disabled", async () => {
+      const job = setupV2Job();
+      (
+        prisma.evaluationRuleEvaluatorAssignment.findFirst as Mock
+      ).mockResolvedValue({
+        ...assignment,
+        evaluator: { ...evaluator, type: EvalTemplateType.HTTP },
+      });
+      const deps = createMockProcessorDeps();
+
+      const outcome = await processObservationEval({
+        event: ruleEvent,
+        executionType: EvalTemplateType.CODE,
+        deps,
+      });
+
+      expect(outcome).toBe("cancelled");
+      expect(deps.downloadObservationFromS3).not.toHaveBeenCalled();
+      expect(executeHttpEvaluation).not.toHaveBeenCalled();
+      expect(prisma.jobExecution.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ id: job.id }),
+          data: expect.objectContaining({
+            status: JobExecutionStatus.CANCELLED,
+          }),
+        }),
+      );
+    });
 
     it("resolves rule, evaluator and version through the assignment in one query", async () => {
       setupV2Job();

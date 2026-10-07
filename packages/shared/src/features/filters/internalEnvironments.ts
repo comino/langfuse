@@ -4,6 +4,7 @@ export const DEFAULT_SIDEBAR_HIDDEN_ENVIRONMENTS = [
   LangfuseInternalTraceEnvironment.PromptExperiments,
   LangfuseInternalTraceEnvironment.LLMJudge,
   LangfuseInternalTraceEnvironment.CodeEval,
+  LangfuseInternalTraceEnvironment.HttpEval,
   LangfuseInternalTraceEnvironment.NaturalLanguageFilter,
   "langfuse-evaluation",
   "sdk-experiment",

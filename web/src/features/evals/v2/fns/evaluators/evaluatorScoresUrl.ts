@@ -43,15 +43,21 @@ export function evaluatorScoresUrl(
   return `/project/${projectId}/scores?showAllEnvironments=true&filter=${encodeURIComponent(encodeFiltersGeneric(filter))}`;
 }
 
+const EXECUTION_ENVIRONMENTS: Partial<
+  Record<EvalTemplateType, LangfuseInternalTraceEnvironment>
+> = {
+  [EvalTemplateTypeEnum.CODE]: LangfuseInternalTraceEnvironment.CodeEval,
+  [EvalTemplateTypeEnum.HTTP]: LangfuseInternalTraceEnvironment.HttpEval,
+};
+
 export function evaluatorExecutionsUrl(
   projectId: string,
   evaluatorId: string,
   evaluatorType: EvalTemplateType,
 ) {
   const environment =
-    evaluatorType === EvalTemplateTypeEnum.CODE
-      ? LangfuseInternalTraceEnvironment.CodeEval
-      : LangfuseInternalTraceEnvironment.LLMJudge;
+    EXECUTION_ENVIRONMENTS[evaluatorType] ??
+    LangfuseInternalTraceEnvironment.LLMJudge;
   const filter: FilterState = [
     {
       column: "evaluatorId",

@@ -52,32 +52,35 @@ describe("createObservationEvalSchedulerDeps", () => {
     expect(getCodeQueueInstance).not.toHaveBeenCalled();
   });
 
-  it("routes code observation eval jobs to the code eval queue", async () => {
-    const { createObservationEvalSchedulerDeps } =
-      await import("../createSchedulerDeps");
+  it.each([EvalTemplateType.CODE, EvalTemplateType.HTTP])(
+    "routes %s observation eval jobs to the code eval queue",
+    async (evalTemplateType) => {
+      const { createObservationEvalSchedulerDeps } =
+        await import("../createSchedulerDeps");
 
-    await createObservationEvalSchedulerDeps().enqueueEvalJob({
-      projectId: "project-1",
-      jobExecutionId: "job-2",
-      observationS3Path: "evals/project-1/observations/obs-1.json",
-      delay: 20,
-      evalTemplateType: EvalTemplateType.CODE,
-    });
+      await createObservationEvalSchedulerDeps().enqueueEvalJob({
+        projectId: "project-1",
+        jobExecutionId: "job-2",
+        observationS3Path: "evals/project-1/observations/obs-1.json",
+        delay: 20,
+        evalTemplateType,
+      });
 
-    expect(getCodeQueueInstance).toHaveBeenCalledWith({
-      shardingKey: "project-1-job-2",
-    });
-    expect(addToCodeQueue).toHaveBeenCalledWith(
-      "code-eval-execution-queue",
-      expect.objectContaining({
-        name: "code-eval-execution-job",
-        id: "job-2",
-        payload: expect.objectContaining({ projectId: "project-1" }),
-      }),
-      { delay: 20 },
-    );
-    expect(getLLMQueueInstance).not.toHaveBeenCalled();
-  });
+      expect(getCodeQueueInstance).toHaveBeenCalledWith({
+        shardingKey: "project-1-job-2",
+      });
+      expect(addToCodeQueue).toHaveBeenCalledWith(
+        "code-eval-execution-queue",
+        expect.objectContaining({
+          name: "code-eval-execution-job",
+          id: "job-2",
+          payload: expect.objectContaining({ projectId: "project-1" }),
+        }),
+        { delay: 20 },
+      );
+      expect(getLLMQueueInstance).not.toHaveBeenCalled();
+    },
+  );
 
   it("includes a mapping override on the observation eval payload", async () => {
     const { createObservationEvalSchedulerDeps } =

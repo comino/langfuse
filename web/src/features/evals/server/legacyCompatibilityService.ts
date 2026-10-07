@@ -447,7 +447,12 @@ function isRunnableTemplate(template: {
   type: EvalTemplateType;
   sourceCodeLanguage: EvalTemplateSourceCodeLanguage | null;
 }) {
-  if (template.type === EvalTemplateType.FACET) return false;
+  if (
+    template.type === EvalTemplateType.FACET ||
+    template.type === EvalTemplateType.HTTP
+  ) {
+    return false;
+  }
   if (template.type !== EvalTemplateType.CODE) return true;
 
   return (
@@ -568,6 +573,10 @@ async function applyScoreNameChange(params: {
   if (!evaluator || evaluator.name === scoreName) return;
   if (evaluator.isBuiltIn || evaluator.type === EvalTemplateType.FACET) {
     throw new InvalidRequestError("Built-in evaluators cannot be edited");
+  }
+  if (evaluator.type === EvalTemplateType.HTTP) {
+    // The fork below does not copy the endpoint config.
+    throw new InvalidRequestError("HTTP evaluators cannot be renamed here");
   }
 
   if (evaluator._count.assignments <= 1) {

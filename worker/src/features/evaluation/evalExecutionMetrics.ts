@@ -32,6 +32,13 @@ const CODE_EVAL_CUSTOMER_ERROR_CODES: ReadonlySet<string> = new Set([
   CodeEvalDispatcherErrorCodes.TIMEOUT,
   CodeEvalDispatcherErrorCodes.OUT_OF_MEMORY,
   CodeEvalDispatcherErrorCodes.USER_CODE_ERROR,
+  CodeEvalDispatcherErrorCodes.HTTP_URL_BLOCKED,
+  CodeEvalDispatcherErrorCodes.HTTP_STATUS_ERROR,
+  CodeEvalDispatcherErrorCodes.HTTP_TIMEOUT,
+  CodeEvalDispatcherErrorCodes.HTTP_CONNECTION_ERROR,
+  CodeEvalDispatcherErrorCodes.HTTP_INVALID_RESPONSE,
+  CodeEvalDispatcherErrorCodes.HTTP_REQUEST_TOO_LARGE,
+  CodeEvalDispatcherErrorCodes.HTTP_RESPONSE_TOO_LARGE,
 ]);
 
 export function recordEvalTimeToFirstAttempt(

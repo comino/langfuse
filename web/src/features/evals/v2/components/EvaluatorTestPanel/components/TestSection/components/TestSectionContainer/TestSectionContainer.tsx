@@ -13,7 +13,7 @@ import { toTestResultPanelState } from "@/src/features/evals/v2/fns/evaluatorTes
 import type { EvaluatorSetupStore } from "@/src/features/evals/v2/store/evaluatorSetupStore/evaluatorSetupStore";
 
 const RESULT_TITLES: Record<
-  Exclude<EvalTemplateType, "FACET">,
+  Exclude<EvalTemplateType, "FACET" | "HTTP">,
   TestResultPanelTitle
 > = {
   LLM_AS_JUDGE: "LLM Output",

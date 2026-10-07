@@ -359,6 +359,7 @@ function getEffectiveModel(
     case EvalTemplateType.DECISION_MODEL:
       return evaluator.versions[0]?.model ?? null;
     case EvalTemplateType.CODE:
+    case EvalTemplateType.HTTP:
     case EvalTemplateType.FACET:
       return null;
   }

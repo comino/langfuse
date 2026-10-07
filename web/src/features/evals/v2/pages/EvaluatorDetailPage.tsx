@@ -39,8 +39,9 @@ function toSetupDefinition(
         sourceCode: latest.sourceCode ?? "",
         sourceCodeLanguage: latest.sourceCodeLanguage ?? "TYPESCRIPT",
       };
+    case "HTTP":
     case "FACET":
-      throw new Error("Facets are not shown as evaluators");
+      throw new Error(`${type} evaluators cannot be edited here`);
   }
 }
 
@@ -56,7 +57,11 @@ export default function EvaluatorDetailPage() {
   if (evaluator.isPending) {
     return <EvaluatorSetupLoadingPage mode="edit" projectId={projectId} />;
   }
-  if (!evaluator.data?.versions[0] || evaluator.data.type === "FACET") {
+  if (
+    !evaluator.data?.versions[0] ||
+    evaluator.data.type === "FACET" ||
+    evaluator.data.type === "HTTP"
+  ) {
     return <div className="p-6">Evaluator not found</div>;
   }
 

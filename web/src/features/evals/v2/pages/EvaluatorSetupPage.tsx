@@ -106,6 +106,9 @@ export function getEvaluatorVersionDefinition(
   if (version.type === "FACET") {
     throw new Error("Facets cannot be edited as evaluators");
   }
+  if (version.type === "HTTP") {
+    throw new Error("HTTP evaluators cannot be edited in the UI yet");
+  }
   if (version.type === "CODE") {
     return {
       type: version.type,
@@ -170,7 +173,7 @@ export function EvaluatorSetupPage(
         mode: "create";
         projectId: string;
         initialDraft: EvaluatorSetupDraft | null;
-        initialType: Exclude<EvalTemplateType, "FACET">;
+        initialType: Exclude<EvalTemplateType, "FACET" | "HTTP">;
         creationSource: EvaluatorCreationSource;
       }
     | {

@@ -18,6 +18,7 @@ export function ruleExecutionsUrl(projectId: string, ruleId: string) {
       operator: "any of",
       value: [
         LangfuseInternalTraceEnvironment.CodeEval,
+        LangfuseInternalTraceEnvironment.HttpEval,
         LangfuseInternalTraceEnvironment.LLMJudge,
       ],
     },

@@ -131,7 +131,8 @@ export const ObservationDetailViewHeader = memo(
     );
     const isEvaluatorExecution =
       observation.environment === LangfuseInternalTraceEnvironment.LLMJudge ||
-      observation.environment === LangfuseInternalTraceEnvironment.CodeEval;
+      observation.environment === LangfuseInternalTraceEnvironment.CodeEval ||
+      observation.environment === LangfuseInternalTraceEnvironment.HttpEval;
     const evaluator = api.evalsV2.get.useQuery(
       { projectId, evaluatorId: evaluatorId ?? "" },
       {
@@ -486,7 +487,9 @@ export const ObservationDetailViewHeader = memo(
               (observation.environment ===
                 LangfuseInternalTraceEnvironment.LLMJudge ||
                 observation.environment ===
-                  LangfuseInternalTraceEnvironment.CodeEval) &&
+                  LangfuseInternalTraceEnvironment.CodeEval ||
+                observation.environment ===
+                  LangfuseInternalTraceEnvironment.HttpEval) &&
               !evaluatorId.startsWith("managed:") && (
                 <EvaluatorBadge
                   evaluatorId={evaluatorId}

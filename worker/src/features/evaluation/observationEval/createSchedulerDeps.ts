@@ -87,7 +87,10 @@ export function createObservationEvalSchedulerDeps(): ObservationEvalSchedulerDe
           : {}),
       };
 
-      if (params.evalTemplateType === EvalTemplateType.CODE) {
+      if (
+        params.evalTemplateType === EvalTemplateType.CODE ||
+        params.evalTemplateType === EvalTemplateType.HTTP
+      ) {
         const queue = CodeEvalExecutionQueue.getInstance({ shardingKey });
         if (!queue) {
           throw new Error("CodeEvalExecutionQueue is not initialized");

@@ -154,6 +154,14 @@ export const CodeEvalDispatcherErrorCode = z.enum([
   "LAMBDA_CONCURRENCY_LIMIT",
   "LAMBDA_CONFIGURATION_ERROR",
   "LAMBDA_INVOCATION_ERROR",
+  "HTTP_URL_BLOCKED",
+  "HTTP_TIMEOUT",
+  "HTTP_CONNECTION_ERROR",
+  "HTTP_STATUS_ERROR",
+  "HTTP_INVALID_CONFIG",
+  "HTTP_INVALID_RESPONSE",
+  "HTTP_REQUEST_TOO_LARGE",
+  "HTTP_RESPONSE_TOO_LARGE",
 ]);
 export type CodeEvalDispatcherErrorCode = z.infer<
   typeof CodeEvalDispatcherErrorCode

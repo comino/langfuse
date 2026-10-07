@@ -3,6 +3,7 @@ import {
   DEFAULT_TRACE_ENVIRONMENT,
   ObservationEvalExecutionEventSchema,
   extractObservationVariables,
+  isHttpEvalEnabled,
   logger,
   recordIncrement,
 } from "@langfuse/shared/src/server";
@@ -35,6 +36,7 @@ import {
 } from "../evalExecutionDeps";
 import { runLLMAsJudgeEvaluation } from "../evalService";
 import { executeCodeBasedEvaluation } from "../codeBased";
+import { executeHttpEvaluation } from "../httpBased";
 import { runDecisionModelEvaluation } from "../decisionModel/runDecisionModelEvaluation";
 import { getEvalS3StorageClient } from "../s3StorageClient";
 import { type ObservationForEval } from "./types";
@@ -84,7 +86,8 @@ const EVALUATOR_TYPES_BY_EXECUTION_TYPE: Record<
     EvalTemplateType.LLM_AS_JUDGE,
     EvalTemplateType.DECISION_MODEL,
   ],
-  [EvalTemplateType.CODE]: [EvalTemplateType.CODE],
+  // HTTP evaluators share the code eval lane: same payload, same result shape.
+  [EvalTemplateType.CODE]: [EvalTemplateType.CODE, EvalTemplateType.HTTP],
 };
 
 export type ObservationEvalProcessorOutcome =
@@ -295,6 +298,15 @@ export async function processObservationEval(
           : {}),
       });
       break;
+    case EvalTemplateType.HTTP:
+      executionResult = await executeHttpEvaluation({
+        ...executionParams,
+        template,
+        ...(resolved.type === "v2"
+          ? { evaluatorId: resolved.evaluatorId }
+          : {}),
+      });
+      break;
   }
 
   await completeEvalExecution({
@@ -429,12 +441,26 @@ async function resolveObservationEvalExecution(params: {
 const evaluatorInclude = {
   project: { select: { orgId: true } },
   // A rule runs its evaluator's current version, so the definition is resolved
-  // here rather than pinned at dispatch.
-  versions: { orderBy: { version: "desc" }, take: 1 },
+  // here rather than pinned at dispatch. HTTP secrets are omitted globally;
+  // this delivery path opts back in.
+  versions: {
+    orderBy: { version: "desc" },
+    take: 1,
+    omit: { httpRequestHeaders: false, httpSecretKey: false },
+  },
 } satisfies Prisma.EvaluatorInclude;
 
+type HttpTemplateFields = {
+  httpUrl?: string | null;
+  httpRequestHeaders?: unknown;
+  httpSecretKey?: string | null;
+};
+
 function normalizeEvalTemplate(
-  template: EvalTemplate & { promptMessages?: unknown; questions?: unknown },
+  template: EvalTemplate & {
+    promptMessages?: unknown;
+    questions?: unknown;
+  } & HttpTemplateFields,
   evaluatorType: EvalTemplateType,
 ): EvalTemplateWithType {
   switch (evaluatorType) {
@@ -493,9 +519,37 @@ function normalizeEvalTemplate(
         sourceCodeLanguage: null,
         questions: template.questions,
       };
+    case EvalTemplateType.HTTP:
+      if (template.type !== evaluatorType || !template.httpUrl) {
+        throw new UnrecoverableError(
+          "Evaluator template is incomplete for HTTP execution",
+        );
+      }
+      return {
+        ...template,
+        type: evaluatorType,
+        prompt: null,
+        outputDefinition: null,
+        sourceCode: null,
+        sourceCodeLanguage: null,
+        httpUrl: template.httpUrl,
+        httpRequestHeaders: template.httpRequestHeaders ?? null,
+        httpSecretKey: template.httpSecretKey ?? null,
+      };
     case EvalTemplateType.FACET:
       throw new UnrecoverableError("Facets cannot run as evaluators");
   }
+}
+
+function resolveVariableMapping(
+  type: EvalTemplateType,
+  storedMapping: Prisma.JsonValue | null,
+): Prisma.JsonValue {
+  // HTTP endpoints always receive the full payload; a stored mapping, even an
+  // empty one, must not strip it.
+  if (type === EvalTemplateType.HTTP) return getCodeEvalVariableMapping();
+  if (storedMapping !== null) return storedMapping;
+  return type === EvalTemplateType.CODE ? getCodeEvalVariableMapping() : [];
 }
 
 type ResolvedEvaluator = Prisma.EvaluatorGetPayload<{
@@ -522,17 +576,19 @@ function buildV2Execution(params: {
   if (evaluator.blockedAt) {
     return { type: "cancelled" as const, reason: "evaluator-blocked" };
   }
+  // HTTP jobs are cancelled, not failed, while the feature is disabled.
+  if (evaluator.type === EvalTemplateType.HTTP && !isHttpEvalEnabled()) {
+    return { type: "cancelled" as const, reason: "http-eval-disabled" };
+  }
   const version = evaluator.versions[0];
   if (!version) {
     return { type: "cancelled" as const, reason: "version-missing" };
   }
   const organizationId = evaluator.project.orgId;
-  const variableMapping =
-    assignment?.variableMapping ??
-    version.variableMapping ??
-    (evaluator.type === EvalTemplateType.CODE
-      ? getCodeEvalVariableMapping()
-      : []);
+  const variableMapping = resolveVariableMapping(
+    evaluator.type,
+    assignment?.variableMapping ?? version.variableMapping,
+  );
   const config = {
     id: rule?.id ?? evaluator.id,
     createdAt: rule?.createdAt ?? evaluator.createdAt,
@@ -571,6 +627,9 @@ function buildV2Execution(params: {
     sourceCode: version.sourceCode,
     sourceCodeLanguage: version.sourceCodeLanguage,
     questions: version.questions,
+    httpUrl: version.httpUrl,
+    httpRequestHeaders: version.httpRequestHeaders,
+    httpSecretKey: version.httpSecretKey,
   };
 
   return {

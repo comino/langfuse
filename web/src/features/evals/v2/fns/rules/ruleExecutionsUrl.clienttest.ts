@@ -26,6 +26,7 @@ describe("ruleExecutionsUrl", () => {
         operator: "any of",
         value: [
           LangfuseInternalTraceEnvironment.CodeEval,
+          LangfuseInternalTraceEnvironment.HttpEval,
           LangfuseInternalTraceEnvironment.LLMJudge,
         ],
       },

@@ -986,6 +986,10 @@ function toEvaluatorDefinitionInput(
         sourceCode: version.sourceCode ?? "",
         sourceCodeLanguage: version.sourceCodeLanguage ?? "PYTHON",
       };
+    case EvalTemplateType.HTTP:
+      throw new InvalidRequestError(
+        "HTTP evaluators cannot be edited or tested here yet",
+      );
   }
 }
 

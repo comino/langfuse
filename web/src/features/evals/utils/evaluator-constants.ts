@@ -32,6 +32,7 @@ export const OUTPUT_MAPPING = [
 const INTERNAL_ENVIRONMENTS = [
   LangfuseInternalTraceEnvironment.LLMJudge,
   LangfuseInternalTraceEnvironment.CodeEval,
+  LangfuseInternalTraceEnvironment.HttpEval,
   LangfuseInternalTraceEnvironment.NaturalLanguageFilter,
   "langfuse-prompt-experiment",
   "langfuse-evaluation",

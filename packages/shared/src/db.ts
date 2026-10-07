@@ -39,6 +39,10 @@ const createPrismaInstance = () => {
       gatewayAiConnection: {
         encryptedCredential: true,
       },
+      evaluatorVersion: {
+        httpRequestHeaders: true,
+        httpSecretKey: true,
+      },
     },
   });
 

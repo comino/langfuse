@@ -563,6 +563,7 @@ export enum LangfuseInternalTraceEnvironment {
   PromptExperiments = "langfuse-prompt-experiment",
   LLMJudge = "langfuse-llm-as-a-judge",
   CodeEval = "langfuse-code-eval",
+  HttpEval = "langfuse-http-eval",
   NaturalLanguageFilter = "langfuse-natural-language-filter",
   InAppAgent = "langfuse-in-app-agent",
 }

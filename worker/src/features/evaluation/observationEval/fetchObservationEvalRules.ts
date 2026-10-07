@@ -18,6 +18,7 @@ const runnableEvaluatorTypes = [
   EvalTemplateType.LLM_AS_JUDGE,
   EvalTemplateType.CODE,
   EvalTemplateType.DECISION_MODEL,
+  EvalTemplateType.HTTP,
 ];
 
 /**

@@ -267,6 +267,44 @@ const EnvSchema = z.object({
     .number()
     .positive()
     .default(1),
+  LANGFUSE_HTTP_EVAL_ENABLED: z.enum(["true", "false"]).default("false"),
+  LANGFUSE_HTTP_EVAL_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(120_000)
+    .default(30_000),
+  // HTTP eval endpoints get their own SSRF allowlist, separate from webhooks.
+  // Comma-separated ports, or "any".
+  LANGFUSE_HTTP_EVAL_ALLOWED_PORTS: z
+    .string()
+    .default("80,443")
+    .transform((s): string[] | "any" =>
+      s.trim() === "any"
+        ? "any"
+        : s
+            .split(",")
+            .map((p) => p.trim())
+            .filter(Boolean),
+    ),
+  LANGFUSE_HTTP_EVAL_WHITELISTED_HOST: z
+    .string()
+    .optional()
+    .transform((s) =>
+      s ? s.split(",").map((h) => h.toLowerCase().trim()) : [],
+    ),
+  LANGFUSE_HTTP_EVAL_WHITELISTED_IPS: z
+    .string()
+    .optional()
+    .transform((s) =>
+      s ? s.split(",").map((h) => h.toLowerCase().trim()) : [],
+    ),
+  LANGFUSE_HTTP_EVAL_WHITELISTED_IP_SEGMENTS: z
+    .string()
+    .optional()
+    .transform((s) =>
+      s ? s.split(",").map((h) => h.toLowerCase().trim()) : [],
+    ),
   LANGFUSE_CODE_EVAL_DISPATCHER: z
     .enum(["insecure-local", "aws-lambda"])
     .optional(),
