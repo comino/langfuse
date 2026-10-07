@@ -13,12 +13,13 @@ import { toTestResultPanelState } from "@/src/features/evals/v2/fns/evaluatorTes
 import type { EvaluatorSetupStore } from "@/src/features/evals/v2/store/evaluatorSetupStore/evaluatorSetupStore";
 
 const RESULT_TITLES: Record<
-  Exclude<EvalTemplateType, "FACET" | "HTTP">,
+  Exclude<EvalTemplateType, "FACET">,
   TestResultPanelTitle
 > = {
   LLM_AS_JUDGE: "LLM Output",
   CODE: "Code Output",
   DECISION_MODEL: "Decision Model Output",
+  HTTP: "HTTP Output",
 };
 
 export function TestSectionContainer({

@@ -29,6 +29,8 @@ describe("prepareEvaluatorDraft", () => {
         name: "",
         sourceCode: "",
         sourceCodeLanguage: "TYPESCRIPT",
+        httpUrl: "",
+        httpHeaders: [],
         scoreOutput: {
           dataType: ScoreDataTypeEnum.NUMERIC,
           scoreDescription: "Quality",
@@ -78,6 +80,8 @@ describe("prepareEvaluatorDraft", () => {
       name: "",
       sourceCode: "",
       sourceCodeLanguage: "TYPESCRIPT",
+      httpUrl: "",
+      httpHeaders: [],
       scoreOutput: {
         dataType: ScoreDataTypeEnum.NUMERIC,
         scoreDescription: "Quality",
@@ -111,6 +115,8 @@ describe("prepareEvaluatorDraft", () => {
       name: "",
       sourceCode: "",
       sourceCodeLanguage: "TYPESCRIPT",
+      httpUrl: "",
+      httpHeaders: [],
       scoreOutput: {
         dataType: ScoreDataTypeEnum.NUMERIC,
         scoreDescription: "Quality",
@@ -154,6 +160,8 @@ describe("prepareEvaluatorDraft", () => {
       name: "",
       sourceCode: "",
       sourceCodeLanguage: "TYPESCRIPT" as const,
+      httpUrl: "",
+      httpHeaders: [],
       scoreOutput: {
         dataType: ScoreDataTypeEnum.NUMERIC,
         scoreDescription: "",
@@ -211,5 +219,42 @@ describe("prepareEvaluatorDraft", () => {
         },
       }).definition,
     ).toBeNull();
+  });
+
+  it("prepares an HTTP definition, dropping blank header rows", () => {
+    const { definition } = prepareEvaluatorDraft({
+      type: "HTTP",
+      promptMessages: [],
+      questions: [],
+      stateKeys: [],
+      name: "",
+      sourceCode: "",
+      sourceCodeLanguage: "TYPESCRIPT",
+      httpUrl: " https://evals.example.com/score ",
+      httpHeaders: [
+        { id: "1", name: " x-api-key ", value: "", secret: true },
+        { id: "2", name: "", value: "orphan", secret: false },
+      ],
+      scoreOutput: {
+        dataType: ScoreDataTypeEnum.NUMERIC,
+        scoreDescription: "",
+        reasoningDescription: "",
+        choices: [],
+        shouldAllowMultipleMatches: false,
+        minValue: "0",
+        maxValue: "1",
+      },
+      variableFields: {},
+      modelMode: "default",
+      selectedModel: null,
+      modelParams: null,
+      initialDefinition: undefined,
+    });
+
+    expect(definition).toEqual({
+      type: "HTTP",
+      url: "https://evals.example.com/score",
+      headers: [{ name: "x-api-key", value: "", secret: true }],
+    });
   });
 });

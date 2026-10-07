@@ -7,6 +7,7 @@ import type {
   RuleDraft,
   RuleTableRow,
 } from "@/src/features/evals/v2/types/rules";
+import { isFixedPayloadEvaluator } from "@/src/features/evals/v2/fns/evaluators/isFixedPayloadEvaluator";
 
 export function prepareRuleCloneDraft(
   rule: Pick<RuleTableRow, "name" | "filter" | "sampling" | "assignments">,
@@ -26,7 +27,7 @@ export function prepareRuleCloneDraft(
         evaluatorType: assignment.evaluator.type,
         defaultVariableMapping: preparedDefault.defaultVariableMapping,
         variableMapping:
-          assignment.evaluator.type === EvalTemplateType.CODE ||
+          isFixedPayloadEvaluator(assignment.evaluator.type) ||
           assignment.variableMapping == null
             ? preparedDefault.initialVariableMapping
             : observationVariableMappingList

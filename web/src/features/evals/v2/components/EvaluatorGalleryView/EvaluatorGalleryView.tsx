@@ -1,6 +1,6 @@
 /* eslint-disable no-nested-ternary */
 import { useCallback, type RefObject } from "react";
-import { Code2, Scale, Search, Sparkles } from "lucide-react";
+import { Code2, Globe, Scale, Search, Sparkles } from "lucide-react";
 import { EvalTemplateTypeEnum, type EvalTemplateType } from "@langfuse/shared";
 
 import { Button } from "@/src/components/ui/button";
@@ -48,6 +48,7 @@ export function EvaluatorGalleryView({
   onExpandedChange,
   onSelectTemplate,
   onCreateFromScratch,
+  httpEnabled = false,
   scrollContainerRef,
   isLoading,
   hasMoreProjectTemplates = false,
@@ -68,6 +69,7 @@ export function EvaluatorGalleryView({
   onExpandedChange: (key: string, expanded: boolean) => void;
   onSelectTemplate: (template: GalleryTemplate, sectionKey: string) => void;
   onCreateFromScratch: (type: EvalTemplateType) => void;
+  httpEnabled?: boolean;
   scrollContainerRef?: RefObject<HTMLDivElement | null>;
   isLoading: boolean;
   hasMoreProjectTemplates?: boolean;
@@ -186,6 +188,19 @@ export function EvaluatorGalleryView({
                   <Scale className="icon-base" aria-hidden="true" />
                   New decision model evaluator
                 </Button>
+                {httpEnabled ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="flex-1 shrink-0 gap-1.5 @2xl:flex-none"
+                    onClick={() =>
+                      onCreateFromScratch(EvalTemplateTypeEnum.HTTP)
+                    }
+                  >
+                    <Globe className="icon-base" aria-hidden="true" />
+                    New HTTP evaluator
+                  </Button>
+                ) : null}
               </div>
             </div>
 

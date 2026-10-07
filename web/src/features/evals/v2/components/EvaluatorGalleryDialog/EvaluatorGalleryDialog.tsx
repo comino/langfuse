@@ -55,6 +55,10 @@ export function EvaluatorGalleryDialog({
     "evaluatorGallery:decisionModelBannerDismissed:v1",
     false,
   );
+  const httpEvalEnabled = api.evalsV2.httpEvalEnabled.useQuery(
+    { projectId },
+    { enabled: open && Boolean(projectId) },
+  );
   const projectEvaluators = api.evalsV2.listGallery.useInfiniteQuery(
     {
       projectId,
@@ -214,6 +218,7 @@ export function EvaluatorGalleryDialog({
           onExpandedChange={handleExpandedChange}
           onSelectTemplate={handleSelectTemplate}
           onCreateFromScratch={handleCreateFromScratch}
+          httpEnabled={httpEvalEnabled.data === true}
           scrollContainerRef={scrollContainerRef}
           isLoading={projectEvaluators.isPending}
           hasMoreProjectTemplates={projectEvaluators.hasNextPage}

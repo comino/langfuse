@@ -44,11 +44,13 @@ import {
   type EvaluatorSetupStore,
 } from "@/src/features/evals/v2/store/evaluatorSetupStore/evaluatorSetupStore";
 import type { EvaluatorSetupDraft } from "@/src/features/evals/v2/types/templateGallery";
+import { toHttpSetupDefinition } from "@/src/features/evals/v2/fns/evaluators/httpSetupDefinition";
 import { EvaluatorRuleRelationships } from "@/src/features/evals/v2/components/Rules/EvaluatorRuleRelationships/EvaluatorRuleRelationships";
 import { DefaultModelChangeConfirmationDialog } from "@/src/features/evals/v2/components/Evaluators/ProjectDefaultModel/DefaultModelChangeConfirmationDialog";
 import { useProjectDefaultModel } from "@/src/features/evals/v2/hooks/useProjectDefaultModel";
 import { safeRandomUUID } from "@/src/utils/safe-random-uuid";
 import { EvaluatorSavedDialogContainer } from "@/src/features/evals/v2/components/Evaluators/EvaluatorSavedDialogContainer/EvaluatorSavedDialogContainer";
+import { SigningSecretDialog } from "@/src/features/evals/v2/components/Evaluators/Http/SigningSecretDialog/SigningSecretDialog";
 import { EVALUATOR_FILTER_EXPERIENCE_STORAGE_KEY } from "@/src/features/evals/v2/constants/evaluatorFilterExperience";
 import type { EvaluatorFilterExperience } from "@/src/features/evals/v2/types/evaluatorFilterExperience";
 import { useLangfuseCloudRegion } from "@/src/features/organizations";
@@ -72,6 +74,7 @@ import { createEvalOnboardingAnalytics } from "@/src/features/evals/v2/fns/creat
 import { EvalOnboardingAnalyticsProvider } from "@/src/features/evals/v2/contexts/EvalOnboardingAnalyticsContext";
 import { isJudgeModelAvailable } from "@/src/features/evals/v2/judgeModel";
 import type { SampleObservation } from "@/src/features/evals/v2/components/Evaluators/Testing/components/SampleObservationSelectorBase/SampleObservationSelectorBase";
+import { isFixedPayloadEvaluator } from "@/src/features/evals/v2/fns/evaluators/isFixedPayloadEvaluator";
 
 type InitialEvaluator = {
   id: string;
@@ -107,7 +110,7 @@ export function getEvaluatorVersionDefinition(
     throw new Error("Facets cannot be edited as evaluators");
   }
   if (version.type === "HTTP") {
-    throw new Error("HTTP evaluators cannot be edited in the UI yet");
+    return toHttpSetupDefinition(version);
   }
   if (version.type === "CODE") {
     return {
@@ -173,7 +176,7 @@ export function EvaluatorSetupPage(
         mode: "create";
         projectId: string;
         initialDraft: EvaluatorSetupDraft | null;
-        initialType: Exclude<EvalTemplateType, "FACET" | "HTTP">;
+        initialType: Exclude<EvalTemplateType, "FACET">;
         creationSource: EvaluatorCreationSource;
       }
     | {
@@ -259,12 +262,11 @@ export function EvaluatorSetupPage(
       hasChangedModelSelection: state.hasChangedModelSelection,
     })),
   );
-  const effectiveDraftModel =
-    modelDraft.type === "CODE"
-      ? null
-      : modelDraft.type === "LLM_AS_JUDGE" && modelDraft.modelMode === "default"
-        ? modelDraft.defaultModel
-        : modelDraft.selectedModel;
+  const effectiveDraftModel = isFixedPayloadEvaluator(modelDraft.type)
+    ? null
+    : modelDraft.type === "LLM_AS_JUDGE" && modelDraft.modelMode === "default"
+      ? modelDraft.defaultModel
+      : modelDraft.selectedModel;
   const draftResolvesEvaluatorBlock = Boolean(
     initialEvaluator?.blockedAt &&
     isEvaluatorBlockReasonRecoverableByDefinitionUpdate(
@@ -316,6 +318,10 @@ export function EvaluatorSetupPage(
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
   const [versionConflictOpen, setVersionConflictOpen] = useState(false);
+  const [signingSecret, setSigningSecret] = useState<{
+    value: string;
+    confirm: () => void;
+  } | null>(null);
   const [savedEvaluator, setSavedEvaluator] = useState<{
     id: string;
     name: string;
@@ -371,8 +377,9 @@ export function EvaluatorSetupPage(
     type: initialEvaluator?.type ?? "LLM_AS_JUDGE",
     sourceCode: version.sourceCode,
     sourceCodeLanguage: version.sourceCodeLanguage,
-    promptMessages:
-      initialEvaluator?.type === "CODE" ? null : version.promptMessages,
+    promptMessages: isFixedPayloadEvaluator(initialEvaluator?.type)
+      ? null
+      : version.promptMessages,
     provider: version.provider,
     model: version.model,
     modelParams: version.modelParams as EvaluatorVersion["modelParams"],
@@ -380,6 +387,8 @@ export function EvaluatorSetupPage(
     variableMapping: version.variableMapping,
     outputDefinition: version.outputDefinition,
     questions: version.questions,
+    httpUrl: version.httpUrl,
+    httpDisplayHeaders: version.httpDisplayHeaders,
     createdByUser: version.createdByUser,
   }));
 
@@ -452,6 +461,8 @@ export function EvaluatorSetupPage(
           type: state.type,
           questions: draftsToQuestions(state.questions) ?? [],
         };
+      case "HTTP":
+        return { type: state.type, url: state.httpUrl };
     }
   };
 
@@ -634,6 +645,13 @@ export function EvaluatorSetupPage(
         definition,
       });
       hasCreatedRef.current = true;
+      if (evaluator.signingSecret) {
+        const value = evaluator.signingSecret;
+        await new Promise<void>((confirm) =>
+          setSigningSecret({ value, confirm }),
+        );
+        setSigningSecret(null);
+      }
       onboardingAnalytics?.completeStep({
         stepName: "evaluator_saved",
         isBlocked: !shouldOfferRuleAttachment(evaluator),
@@ -1024,6 +1042,10 @@ export function EvaluatorSetupPage(
         isOverriding={update.isPending}
         onDiscard={discardConflictingChanges}
         onOverride={overrideConflictingChanges}
+      />
+      <SigningSecretDialog
+        secret={signingSecret?.value ?? null}
+        onConfirm={() => signingSecret?.confirm()}
       />
       {savedEvaluator ? (
         <EvaluatorSavedDialogContainer

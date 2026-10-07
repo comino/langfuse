@@ -3,8 +3,11 @@ import {
   extractVariables,
   InvalidRequestError,
   observationVariableMappingList,
+  WebhookProtectedHeaders,
 } from "@langfuse/shared";
 import {
+  isHttpEvalEnabled,
+  validateHttpEvalUrl,
   DefaultEvalModelService,
   getClientInitiatedNonStreamingLlmTimeoutMs,
   getLLMErrorInfo,
@@ -120,6 +123,11 @@ export async function assertEvaluatorConfigurationValid(params: {
         "This code evaluator language is not supported by the configured dispatcher.",
       );
     }
+    return;
+  }
+
+  if (params.definition.type === EvalTemplateType.HTTP) {
+    await assertHttpDefinitionValid(params.definition);
     return;
   }
 
@@ -246,4 +254,29 @@ async function assertDecisionModelDefinitionValid(params: {
 
   const error = await getDecisionModelConfigurationError(params);
   if (error) throw new EvaluatorModelConfigurationError(error);
+}
+
+async function assertHttpDefinitionValid(
+  definition: Extract<EvaluatorDefinition, { type: "HTTP" }>,
+) {
+  if (!isHttpEvalEnabled()) {
+    throw new EvaluatorConfigurationError(
+      "HTTP evaluations are not enabled for this deployment.",
+    );
+  }
+  try {
+    await validateHttpEvalUrl(definition.url);
+  } catch {
+    throw new InvalidRequestError(
+      "Evaluator endpoint is not allowed. Use a public host on an allowed port.",
+    );
+  }
+  const reserved = definition.headers.find(({ name }) =>
+    WebhookProtectedHeaders.includes(name),
+  );
+  if (reserved) {
+    throw new InvalidRequestError(
+      `Header "${reserved.name}" is set by Langfuse and cannot be overridden`,
+    );
+  }
 }

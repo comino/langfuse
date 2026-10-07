@@ -12,6 +12,9 @@ function requestedEvaluatorType(value: string | string[] | undefined) {
   if (value === EvalTemplateTypeEnum.DECISION_MODEL) {
     return EvalTemplateTypeEnum.DECISION_MODEL;
   }
+  if (value === EvalTemplateTypeEnum.HTTP) {
+    return EvalTemplateTypeEnum.HTTP;
+  }
   return EvalTemplateTypeEnum.LLM_AS_JUDGE;
 }
 

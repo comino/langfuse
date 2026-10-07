@@ -20,5 +20,7 @@ export type EvaluatorVersion = {
   variableMapping: unknown;
   outputDefinition: unknown;
   questions?: unknown;
+  httpUrl?: string | null;
+  httpDisplayHeaders?: unknown;
   createdByUser: { name: string | null; email: string | null } | null;
 };

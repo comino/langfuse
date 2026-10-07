@@ -1093,6 +1093,8 @@ model EvaluatorVersion {
   httpUrl            String? @map("http_url")
   httpRequestHeaders Json?   @map("http_request_headers")
   httpSecretKey      String? @map("http_secret_key")
+  // Header names and non-secret values, readable without the secrets.
+  httpDisplayHeaders Json?   @map("http_display_headers")
 
   topicClusteringRuns TopicClusteringRun[]
 

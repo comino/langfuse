@@ -10,6 +10,7 @@ import { EvaluatorCostCalculationTooltipContent } from "@/src/features/evals/v2/
 import type { ActivationEstimate } from "@/src/features/evals/v2/fns/requestRuleActivation";
 import { formatEvaluatorCostCalculation } from "@/src/features/evals/v2/fns/formatEvaluatorCostCalculation";
 import { compactNumberFormatter, usdFormatter } from "@/src/utils/numbers";
+import { isFixedPayloadEvaluator } from "@/src/features/evals/v2/fns/evaluators/isFixedPayloadEvaluator";
 
 export function EvaluatorSavedCostSummary({
   estimates,
@@ -84,7 +85,7 @@ export function EvaluatorSavedCostSummary({
         />
       </section>
 
-      {evaluatorType === EvalTemplateTypeEnum.CODE ? (
+      {isFixedPayloadEvaluator(evaluatorType) ? (
         <section>
           <h3 className="text-sm font-bold">Matches</h3>
           {isEstimating ? (
@@ -105,7 +106,7 @@ export function EvaluatorSavedCostSummary({
         </section>
       ) : null}
 
-      {evaluatorType !== EvalTemplateTypeEnum.CODE ? (
+      {!isFixedPayloadEvaluator(evaluatorType) ? (
         <section className="border-t pt-4">
           {isEstimating ? (
             <div className="space-y-2">
@@ -149,7 +150,7 @@ export function EvaluatorSavedCostSummary({
         </section>
       ) : null}
 
-      {evaluatorType !== EvalTemplateTypeEnum.CODE && backfill.enabled ? (
+      {!isFixedPayloadEvaluator(evaluatorType) && backfill.enabled ? (
         <section className="border-t pt-4">
           {backfill.isEstimating ? (
             <div className="space-y-2">

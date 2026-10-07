@@ -24,7 +24,10 @@ export function prepareModernRuleVariableMapping(
   value: unknown,
   evaluatorType: EvalTemplateType,
 ): ModernRuleVariableMapping {
-  if (evaluatorType === EvalTemplateType.CODE) {
+  if (
+    evaluatorType === EvalTemplateType.CODE ||
+    evaluatorType === EvalTemplateType.HTTP
+  ) {
     const mapping = getCodeEvalVariableMapping();
     return {
       defaultVariableMapping: mapping,

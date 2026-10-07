@@ -6,6 +6,8 @@ import {
   type ProjectAuthedContext,
 } from "@/src/server/api/trpc";
 import { z } from "zod";
+import { EvalTemplateType } from "@langfuse/shared";
+import { isHttpEvalEnabled } from "@langfuse/shared/src/server";
 import {
   ActivationCostEstimatesSchema,
   CreateEvaluatorSchema,
@@ -32,6 +34,22 @@ const TestEvaluatorSchema = z.object({
   traceId: z.string(),
   startTime: z.coerce.date(),
 });
+
+/**
+ * HTTP evaluators send trace data to a configured URL, like webhooks, so
+ * configuring or test-calling one needs the same scope as automations.
+ */
+function throwIfNoHttpEvaluatorAccess(
+  ctx: ProjectAuthedContext,
+  definition: { type: string },
+) {
+  if (definition.type !== EvalTemplateType.HTTP) return;
+  throwIfNoProjectAccess({
+    session: ctx.session,
+    projectId: ctx.session.projectId,
+    scope: "automations:CUD",
+  });
+}
 
 function serviceForContext(ctx: ProjectAuthedContext) {
   return new EvaluatorService(ctx.prisma, ({ action, evaluatorId }) =>
@@ -201,6 +219,10 @@ export const evaluatorRouter = createTRPCRouter({
       });
     }),
 
+  httpEvalEnabled: protectedProjectProcedure
+    .input(z.object({ projectId: z.string() }))
+    .query(() => isHttpEvalEnabled()),
+
   create: protectedProjectProcedure
     .input(CreateEvaluatorSchema)
     .mutation(async ({ input, ctx }) => {
@@ -209,6 +231,7 @@ export const evaluatorRouter = createTRPCRouter({
         projectId: ctx.session.projectId,
         scope: "evaluator:CUD",
       });
+      throwIfNoHttpEvaluatorAccess(ctx, input.definition);
       const service = serviceForContext(ctx);
       return service.create(
         { ...input, projectId: ctx.session.projectId },
@@ -224,6 +247,7 @@ export const evaluatorRouter = createTRPCRouter({
         projectId: ctx.session.projectId,
         scope: "evaluator:CUD",
       });
+      throwIfNoHttpEvaluatorAccess(ctx, input.definition);
       const service = serviceForContext(ctx);
       return service.update(
         { ...input, projectId: ctx.session.projectId },
@@ -282,6 +306,7 @@ export const evaluatorRouter = createTRPCRouter({
         projectId: ctx.session.projectId,
         scope: "evaluator:CUD",
       });
+      throwIfNoHttpEvaluatorAccess(ctx, input.definition);
       return serviceForContext(ctx).testEvaluator({
         orgId: ctx.session.orgId,
         projectId: ctx.session.projectId,

@@ -1,5 +1,6 @@
 import { type EvalTemplateType, EvalTemplateTypeEnum } from "@langfuse/shared";
 import { numberFormatter, usdFormatter } from "@/src/utils/numbers";
+import { isFixedPayloadEvaluator } from "@/src/features/evals/v2/fns/evaluators/isFixedPayloadEvaluator";
 
 export function formatEvaluatorCostCalculation({
   matchingObservations,
@@ -16,7 +17,7 @@ export function formatEvaluatorCostCalculation({
   evaluatorType: EvalTemplateType;
   period?: "week" | "selection";
 }) {
-  if (evaluatorType === EvalTemplateTypeEnum.CODE) {
+  if (isFixedPayloadEvaluator(evaluatorType)) {
     return {
       calculation: null,
       explanation:

@@ -1,4 +1,4 @@
-import { Code2, Scale, Sparkles } from "lucide-react";
+import { Code2, Globe, Scale, Sparkles } from "lucide-react";
 import { EvalTemplateTypeEnum, type EvalTemplateType } from "@langfuse/shared";
 
 import { Tabs } from "@/src/components/design-system/Tabs/Tabs";
@@ -26,6 +26,11 @@ const evaluationTypes = [
     label: "Decision model (experimental)",
     icon: Scale,
   },
+  {
+    value: EvalTemplateTypeEnum.HTTP,
+    label: "HTTP endpoint",
+    icon: Globe,
+  },
 ] as const;
 
 /** Selects the evaluator implementation. */
@@ -33,16 +38,21 @@ export function EvaluationTypeToggle({
   value,
   onValueChange,
   disabled = false,
+  httpEnabled = false,
 }: {
   value: EvalTemplateType;
   onValueChange: (value: EvalTemplateType) => void;
   disabled?: boolean;
+  /** HTTP evaluators are offered only when the deployment enables them. */
+  httpEnabled?: boolean;
 }) {
   const selectedType =
     evaluationTypes.find((type) => type.value === value) ?? evaluationTypes[0];
   const visibleTypes = disabled
     ? evaluationTypes.filter((type) => type.value === value)
-    : evaluationTypes;
+    : evaluationTypes.filter(
+        (type) => httpEnabled || type.value !== EvalTemplateTypeEnum.HTTP,
+      );
   const SelectedIcon = selectedType.icon;
 
   return (

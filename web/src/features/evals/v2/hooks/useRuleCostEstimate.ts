@@ -6,6 +6,7 @@ import { useShallow } from "zustand/react/shallow";
 
 import type { RuleSetupStore } from "@/src/features/evals/v2/types/rules";
 import { api } from "@/src/utils/api";
+import { isFixedPayloadEvaluator } from "@/src/features/evals/v2/fns/evaluators/isFixedPayloadEvaluator";
 
 export type RuleCostEstimate = {
   evaluatorId: string;
@@ -79,7 +80,7 @@ export function useRuleCostEstimate({
     const firstMatchingObservationCount =
       previousEstimates[0]?.matchingObservations ?? 0;
     const codeEstimates = assignments
-      .filter(({ evaluatorType }) => evaluatorType === EvalTemplateType.CODE)
+      .filter(({ evaluatorType }) => isFixedPayloadEvaluator(evaluatorType))
       .map(({ evaluatorId, evaluatorName }) => ({
         evaluatorId,
         evaluatorName,
@@ -168,7 +169,7 @@ export function useRuleCostEstimate({
           updateState({
             status: "idle",
             estimates: assignments.flatMap((assignment): RuleCostEstimate[] => {
-              if (assignment.evaluatorType === EvalTemplateType.CODE) {
+              if (isFixedPayloadEvaluator(assignment.evaluatorType)) {
                 return codeEstimates.filter(
                   ({ evaluatorId }) => evaluatorId === assignment.evaluatorId,
                 );

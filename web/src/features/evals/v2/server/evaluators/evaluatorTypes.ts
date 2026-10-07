@@ -87,10 +87,38 @@ const DecisionModelEvaluatorDefinitionSchema =
     vars: z.array(DecisionModelStateKeySchema),
   });
 
+/**
+ * HTTP evaluators POST the observation to `url`. A secret header with an empty
+ * value keeps its stored value; secret values are never read back.
+ */
+export const HttpEvaluatorDefinitionSchema = z.object({
+  type: z.literal(EvalTemplateType.HTTP),
+  url: z.url().max(2048),
+  headers: z
+    .array(
+      z.object({
+        name: z
+          .string()
+          .trim()
+          .toLowerCase()
+          .regex(/^[a-z0-9!#$%&'*+.^_`|~-]+$/, "Invalid header name"),
+        value: z.string().max(4096),
+        secret: z.boolean(),
+      }),
+    )
+    .max(20)
+    .refine(
+      (headers) => new Set(headers.map((h) => h.name)).size === headers.length,
+      "Header names must be unique",
+    ),
+  variableMapping: z.never().optional(),
+});
+
 export const EvaluatorDefinitionSchema = z.discriminatedUnion("type", [
   LlmEvaluatorDefinitionSchema,
   CodeEvaluatorDefinitionSchema,
   DecisionModelEvaluatorDefinitionSchema,
+  HttpEvaluatorDefinitionSchema,
 ]);
 
 export const EvaluatorModelConfigSchema = z.object({
@@ -119,10 +147,12 @@ export const EvaluatorDefinitionInputSchema = z
     LlmEvaluatorDefinitionInputSchema,
     CodeEvaluatorDefinitionSchema,
     DecisionModelEvaluatorDefinitionInputSchema,
+    HttpEvaluatorDefinitionSchema,
   ])
   .transform((definition): z.infer<typeof EvaluatorDefinitionSchema> => {
     switch (definition.type) {
       case EvalTemplateType.CODE:
+      case EvalTemplateType.HTTP:
         return definition;
       case EvalTemplateType.DECISION_MODEL:
         return {
@@ -303,6 +333,10 @@ export const SuggestEvaluatorTextSchema = z.object({
       type: z.literal(EvalTemplateType.DECISION_MODEL),
       questions: DecisionModelQuestionsSchema,
     }),
+    z.object({
+      type: z.literal(EvalTemplateType.HTTP),
+      url: z.string().min(1),
+    }),
   ]),
 });
 
@@ -316,7 +350,19 @@ export type EvaluatorDefinitionForPersistence =
   | (Omit<Extract<EvaluatorDefinition, { type: "CODE" }>, "variableMapping"> & {
       variableMapping: ObservationVariableMapping[];
     })
-  | Extract<EvaluatorDefinition, { type: "DECISION_MODEL" }>;
+  | Extract<EvaluatorDefinition, { type: "DECISION_MODEL" }>
+  | {
+      type: "HTTP";
+      variableMapping: ObservationVariableMapping[];
+      httpUrl: string;
+      /** Encrypted secret values. */
+      httpRequestHeaders: Record<string, { secret: boolean; value: string }>;
+      httpDisplayHeaders: Record<string, { secret: boolean; value: string }>;
+      /** Encrypted signing secret. */
+      httpSecretKey: string;
+      /** Plaintext signing secret, set only when it was just generated. */
+      newSigningSecret?: string;
+    };
 export type CreateEvaluatorInput = z.infer<typeof CreateEvaluatorSchema>;
 export type UpdateEvaluatorInput = z.infer<typeof UpdateEvaluatorSchema>;
 export type PatchEvaluatorInput = Pick<

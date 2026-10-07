@@ -35,7 +35,7 @@ export function toTestResultPanelState(params: {
     };
   }
 
-  if (params.type === "CODE") {
+  if (params.type === "CODE" || params.type === "HTTP") {
     const scores = Array.isArray(response.scores) ? response.scores : [];
     return {
       status: "code-success",

@@ -2,6 +2,8 @@ import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import type { EvalTemplateType, LLMAdapter } from "@langfuse/shared";
 
+import { HttpEditor } from "@/src/features/evals/v2/components/Evaluators/EvaluatorSetupEditor/components/DefinitionStep/components/HttpEditor/HttpEditor";
+import { api } from "@/src/utils/api";
 import { DefinitionStep } from "@/src/features/evals/v2/components/Evaluators/EvaluatorSetupEditor/components/DefinitionStep/DefinitionStep";
 import { CodeEditor } from "@/src/features/evals/v2/components/Evaluators/EvaluatorSetupEditor/components/DefinitionStep/components/CodeEditor/CodeEditor";
 import { CodeLanguageSelector } from "@/src/features/evals/v2/components/Evaluators/EvaluatorSetupEditor/components/DefinitionStep/components/CodeLanguageSelector/CodeLanguageSelector";
@@ -52,8 +54,9 @@ export function DefinitionStepContainer({
       actions: state.actions,
     })),
   );
+  const httpEvalEnabled = api.evalsV2.httpEvalEnabled.useQuery({ projectId });
   const changeType = (type: EvalTemplateType) => {
-    if (type === "FACET" || type === "HTTP") return;
+    if (type === "FACET") return;
     const previousEvaluatorType = store.getState().type;
     state.actions.setType(type);
     if (type !== previousEvaluatorType) {
@@ -68,6 +71,7 @@ export function DefinitionStepContainer({
     onOpenChange: (open: boolean) => onStepOpenChange(1, open),
     onTypeChange: changeType,
     isEditing,
+    httpEnabled: httpEvalEnabled.data === true,
   };
 
   switch (state.type) {
@@ -121,6 +125,14 @@ export function DefinitionStepContainer({
             />
           }
           questionsEditor={<DecisionModelQuestionsEditor store={store} />}
+        />
+      );
+    case "HTTP":
+      return (
+        <DefinitionStep
+          {...stepProps}
+          type={state.type}
+          endpointEditor={<HttpEditor store={store} />}
         />
       );
   }

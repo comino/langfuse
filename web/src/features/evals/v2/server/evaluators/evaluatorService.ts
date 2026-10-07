@@ -41,6 +41,13 @@ import {
   EvaluatorDefinitionSchema,
 } from "./evaluatorTypes";
 import { testEvaluator as executeEvaluatorTest } from "./testEvaluator";
+import {
+  findHttpSecrets,
+  toHttpDefinition,
+  toHttpEndpoint,
+  toHttpPersistence,
+  type StoredHttpSecrets,
+} from "./httpEvaluatorDefinition";
 import * as repository from "./evaluatorRepository";
 import {
   EvaluatorConfigurationError,
@@ -66,6 +73,7 @@ type SuggestEvaluatorTextParams = {
           Extract<EvaluatorDefinition, { type: "DECISION_MODEL" }>,
           "questions"
         >
+      | { url: string }
     );
 };
 
@@ -111,7 +119,11 @@ function normalizeEvaluatorPromptMessages<
 
 function prepareEvaluatorDefinitionForPersistence(
   definition: EvaluatorDefinition,
+  previousHttpSecrets: StoredHttpSecrets | null = null,
 ): EvaluatorDefinitionForPersistence {
+  if (definition.type === EvalTemplateType.HTTP) {
+    return toHttpPersistence(definition, previousHttpSecrets);
+  }
   if (definition.type === EvalTemplateType.CODE) {
     return {
       ...definition,
@@ -284,16 +296,14 @@ export class EvaluatorService {
 
   async create(input: CreateEvaluatorInput, createdByUserId: string | null) {
     const block = await validateEvaluatorForPersistence(input);
+    const definition = prepareEvaluatorDefinitionForPersistence(
+      input.definition,
+    );
     try {
       const evaluator = await this.prisma.$transaction((prisma) =>
         repository.createEvaluator({
           prisma,
-          input: {
-            ...input,
-            definition: prepareEvaluatorDefinitionForPersistence(
-              input.definition,
-            ),
-          },
+          input: { ...input, definition },
           createdByUserId,
           block,
         }),
@@ -304,7 +314,12 @@ export class EvaluatorService {
         projectId: input.projectId,
         evaluatorId: evaluator.id,
       });
-      return normalizeEvaluatorPromptMessages(evaluator);
+      // An HTTP evaluator's signing secret is shown exactly once.
+      const signingSecret =
+        definition.type === EvalTemplateType.HTTP
+          ? definition.newSigningSecret
+          : undefined;
+      return { ...normalizeEvaluatorPromptMessages(evaluator), signingSecret };
     } catch (error) {
       // Callers may pre-generate the id so test runs can be attributed
       // before the first save. An exact retry returns the existing evaluator.
@@ -330,7 +345,10 @@ export class EvaluatorService {
               input.definition,
             )
           ) {
-            return normalizeEvaluatorPromptMessages(existing);
+            return {
+              ...normalizeEvaluatorPromptMessages(existing),
+              signingSecret: undefined,
+            };
           }
         }
         throw new LangfuseConflictError(
@@ -491,7 +509,10 @@ export class EvaluatorService {
     if (!version)
       throw new LangfuseNotFoundError("Evaluator version not found");
     const definition = toEvaluatorDefinition(evaluator.type, version);
-    if (definition.type === EvalTemplateType.CODE) {
+    if (
+      definition.type === EvalTemplateType.CODE ||
+      definition.type === EvalTemplateType.HTTP
+    ) {
       throw new EvaluatorConfigurationError(
         "Only LLM and decision-model evaluators can be reactivated with a model test.",
       );
@@ -628,6 +649,7 @@ export class EvaluatorService {
     let evaluatorId = requestedEvaluatorId;
     let definition = requestedDefinition;
     let includeEvaluatorLink = false;
+    let latestVersionId: string | undefined;
 
     if (definition) {
       if (evaluatorId) {
@@ -637,7 +659,14 @@ export class EvaluatorService {
             projectId: params.projectId,
             type: { not: EvalTemplateType.FACET },
           },
-          select: { id: true },
+          select: {
+            id: true,
+            versions: {
+              orderBy: { version: "desc" },
+              take: 1,
+              select: { id: true },
+            },
+          },
         });
         // The setup editor pre-generates a UUID so a test run can be attributed
         // to the evaluator before it is first saved. Every other id must resolve
@@ -647,6 +676,7 @@ export class EvaluatorService {
           throw new LangfuseNotFoundError("Evaluator not found");
         }
         includeEvaluatorLink = Boolean(evaluator);
+        latestVersionId = evaluator?.versions[0]?.id;
       } else {
         evaluatorId = randomUUID();
       }
@@ -663,13 +693,26 @@ export class EvaluatorService {
       }
       definition = toEvaluatorDefinition(evaluator.type, latestVersion);
       includeEvaluatorLink = true;
+      latestVersionId = latestVersion.id;
     }
+
+    // Drafts may leave secret header values empty to reuse the stored ones.
+    const httpEndpoint =
+      definition.type === EvalTemplateType.HTTP
+        ? toHttpEndpoint(
+            toHttpPersistence(
+              definition,
+              await findHttpSecrets(this.prisma, latestVersionId),
+            ),
+          )
+        : undefined;
 
     return executeEvaluatorTest({
       ...executionParams,
       evaluatorId,
       definition,
       includeEvaluatorLink,
+      httpEndpoint,
     });
   }
 
@@ -793,7 +836,10 @@ async function patchEvaluator(params: {
         tx,
         evaluatorId: input.evaluatorId,
         version: latest.version + 1,
-        definition: prepareEvaluatorDefinitionForPersistence(input.definition),
+        definition: prepareEvaluatorDefinitionForPersistence(
+          input.definition,
+          await findHttpSecrets(tx, latest.id),
+        ),
         createdByUserId,
       });
     }
@@ -857,7 +903,10 @@ async function updateEvaluator(params: {
       tx,
       evaluatorId: input.evaluatorId,
       version: latest.version + 1,
-      definition: prepareEvaluatorDefinitionForPersistence(input.definition),
+      definition: prepareEvaluatorDefinitionForPersistence(
+        input.definition,
+        await findHttpSecrets(tx, latest.id),
+      ),
       createdByUserId,
     });
   }
@@ -945,6 +994,8 @@ export function toEvaluatorDefinition(
     sourceCode: string | null;
     sourceCodeLanguage: "PYTHON" | "TYPESCRIPT" | null;
     questions?: unknown;
+    httpUrl?: string | null;
+    httpDisplayHeaders?: unknown;
   },
 ): NormalizedEvaluatorDefinition {
   return EvaluatorDefinitionSchema.parse(
@@ -987,9 +1038,10 @@ function toEvaluatorDefinitionInput(
         sourceCodeLanguage: version.sourceCodeLanguage ?? "PYTHON",
       };
     case EvalTemplateType.HTTP:
-      throw new InvalidRequestError(
-        "HTTP evaluators cannot be edited or tested here yet",
-      );
+      return toHttpDefinition({
+        httpUrl: version.httpUrl ?? null,
+        httpDisplayHeaders: version.httpDisplayHeaders,
+      });
   }
 }
 
@@ -998,6 +1050,9 @@ function getSuggestionDefinitionText(params: SuggestEvaluatorTextParams) {
     return getLegacyEvaluatorPrompt(params.definition.promptMessages);
   }
   if ("sourceCode" in params.definition) return params.definition.sourceCode;
+  if ("url" in params.definition) {
+    return `An evaluator that sends each observation to the HTTP endpoint ${params.definition.url} and stores the returned scores.`;
+  }
   return params.definition.questions
     .map((question) =>
       typeof question.instructions === "string"

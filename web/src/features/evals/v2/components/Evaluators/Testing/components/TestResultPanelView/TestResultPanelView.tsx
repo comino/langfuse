@@ -32,7 +32,8 @@ export type TestResultPanelState =
 export type TestResultPanelTitle =
   | "LLM Output"
   | "Code Output"
-  | "Decision Model Output";
+  | "Decision Model Output"
+  | "HTTP Output";
 
 /** One measurement of the test call in the header strip. */
 function ResultStat({

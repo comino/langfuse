@@ -11,12 +11,14 @@ export function EvaluationTypeConfiguration({
   mode,
   onModeChange,
   disabled,
+  httpEnabled = false,
   children,
 }: {
   mode: EvalTemplateType;
   onModeChange: (mode: EvalTemplateType) => void;
   disabled: boolean;
-  children: ReactNode;
+  httpEnabled?: boolean;
+  children?: ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-2">
@@ -28,7 +30,8 @@ export function EvaluationTypeConfiguration({
             or schema validation. Use an LLM when the check needs judgment, such
             as rating helpfulness, tone, or answer quality. Use a decision model
             (experimental) for a fast, cheap label with calibrated probabilities
-            when the possible answers are known upfront.
+            when the possible answers are known upfront. Use an HTTP endpoint
+            when your evaluation logic already runs as a service.
           </InfoTooltip>
         </span>
       </Label>
@@ -38,8 +41,11 @@ export function EvaluationTypeConfiguration({
           value={mode}
           onValueChange={onModeChange}
           disabled={disabled}
+          httpEnabled={httpEnabled}
         />
-        <span>{mode === "CODE" ? "written in" : "with"}</span>
+        {mode !== "HTTP" && (
+          <span>{mode === "CODE" ? "written in" : "with"}</span>
+        )}
         {children}
       </div>
     </div>

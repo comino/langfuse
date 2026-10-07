@@ -18,6 +18,7 @@ import { extractVariableMappingValue } from "@/src/features/evals/v2/fns/variabl
 import { useVariableMappingController } from "@/src/features/evals/v2/hooks/useVariableMappingController";
 import type { VariableFieldState } from "@/src/features/evals/v2/types/variableMapping";
 import type { RuleSetupStore } from "@/src/features/evals/v2/types/rules";
+import { isFixedPayloadEvaluator } from "@/src/features/evals/v2/fns/evaluators/isFixedPayloadEvaluator";
 
 export const EvaluatorMappingRow = memo(function EvaluatorMappingRow({
   evaluatorId,
@@ -59,7 +60,7 @@ export const EvaluatorMappingRow = memo(function EvaluatorMappingRow({
     (state) => state.actions.detachEvaluator,
   );
   const variableMapping = useVariableMappingController();
-  const isCodeEvaluator = evaluatorType === "CODE";
+  const isCodeEvaluator = isFixedPayloadEvaluator(evaluatorType);
   const mapping = variableMappingOverride ?? defaultVariableMapping;
   const mappings = mapping.map((entry) => ({
     variable: entry.templateVariable,

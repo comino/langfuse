@@ -4,6 +4,7 @@ import { EvaluatorSetupLoadingPage } from "@/src/features/evals/v2/components/Ev
 import { api, type RouterOutputs } from "@/src/utils/api";
 import type { NormalizedEvaluatorDefinition } from "../server/evaluators/evaluatorTypes";
 import { EvaluatorSetupPage } from "./EvaluatorSetupPage";
+import { toHttpSetupDefinition } from "@/src/features/evals/v2/fns/evaluators/httpSetupDefinition";
 
 type EvaluatorVersionRow = RouterOutputs["evalsV2"]["get"]["versions"][number];
 
@@ -40,8 +41,9 @@ function toSetupDefinition(
         sourceCodeLanguage: latest.sourceCodeLanguage ?? "TYPESCRIPT",
       };
     case "HTTP":
+      return toHttpSetupDefinition(latest);
     case "FACET":
-      throw new Error(`${type} evaluators cannot be edited here`);
+      throw new Error("Facets cannot be edited here");
   }
 }
 
@@ -57,11 +59,7 @@ export default function EvaluatorDetailPage() {
   if (evaluator.isPending) {
     return <EvaluatorSetupLoadingPage mode="edit" projectId={projectId} />;
   }
-  if (
-    !evaluator.data?.versions[0] ||
-    evaluator.data.type === "FACET" ||
-    evaluator.data.type === "HTTP"
-  ) {
+  if (!evaluator.data?.versions[0] || evaluator.data.type === "FACET") {
     return <div className="p-6">Evaluator not found</div>;
   }
 

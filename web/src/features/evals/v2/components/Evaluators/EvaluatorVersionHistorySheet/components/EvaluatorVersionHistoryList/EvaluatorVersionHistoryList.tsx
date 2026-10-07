@@ -15,11 +15,16 @@ import {
 } from "../EvaluatorDefinitionView/EvaluatorDefinitionView";
 import type { JudgeModel } from "@/src/features/evals/v2/judgeModel";
 import type { EvaluatorVersion } from "../../types";
+import { toHttpSetupDefinition } from "@/src/features/evals/v2/fns/evaluators/httpSetupDefinition";
 
 function toEvaluatorDefinition(
   version: EvaluatorVersion,
   defaultModel: JudgeModel | null,
 ): EvaluatorDefinition {
+  if (version.type === EvalTemplateTypeEnum.HTTP) {
+    return toHttpSetupDefinition(version);
+  }
+
   if (version.type === EvalTemplateTypeEnum.CODE) {
     return {
       type: EvalTemplateTypeEnum.CODE,

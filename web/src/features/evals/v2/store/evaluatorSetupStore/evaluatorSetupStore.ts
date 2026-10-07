@@ -91,8 +91,27 @@ function buildInitialQuestions(
     : [];
 }
 
+export type HttpHeaderDraft = {
+  id: string;
+  name: string;
+  value: string;
+  secret: boolean;
+};
+
+function buildInitialHttpHeaders(
+  definition: NormalizedEvaluatorDefinition | null | undefined,
+): HttpHeaderDraft[] {
+  return definition?.type === "HTTP"
+    ? definition.headers.map((header) => ({ ...header, id: safeRandomUUID() }))
+    : [];
+}
+
 type EvaluatorSetupStoreActions = {
   setType: (type: EditableEvaluatorType) => void;
+  setHttpUrl: (httpUrl: string) => void;
+  addHttpHeader: () => void;
+  updateHttpHeader: (id: string, patch: Partial<HttpHeaderDraft>) => void;
+  removeHttpHeader: (id: string) => void;
   setQuestion: (question: DecisionModelQuestionDraft) => void;
   addQuestion: (question: DecisionModelQuestionDraft) => void;
   removeQuestion: (id: string) => void;
@@ -141,6 +160,8 @@ export type EvaluatorSetupStoreState = {
   sourceCode: string;
   sourceCodeLanguage: EvalTemplateSourceCodeLanguage;
   sourceCodeDrafts: Partial<Record<EvalTemplateSourceCodeLanguage, string>>;
+  httpUrl: string;
+  httpHeaders: HttpHeaderDraft[];
   scoreOutput: ScoreOutputFormState;
   name: string;
   description: string;
@@ -224,6 +245,8 @@ export function createEvaluatorSetupStore({
     sourceCodeDrafts: {
       [initialSourceCodeLanguage]: initialSourceCode,
     },
+    httpUrl: initialDefinition?.type === "HTTP" ? initialDefinition.url : "",
+    httpHeaders: buildInitialHttpHeaders(initialDefinition),
     scoreOutput: buildInitialScoreOutput(initialDefinition),
     name: initialEvaluator?.name ?? "",
     description: initialEvaluator?.description ?? "",
@@ -429,6 +452,24 @@ export function createEvaluatorSetupStore({
             promptMessageIds: reorder(state.promptMessageIds),
           };
         }),
+      setHttpUrl: (httpUrl) => set({ httpUrl }),
+      addHttpHeader: () =>
+        set((state) => ({
+          httpHeaders: [
+            ...state.httpHeaders,
+            { id: safeRandomUUID(), name: "", value: "", secret: false },
+          ],
+        })),
+      updateHttpHeader: (id, patch) =>
+        set((state) => ({
+          httpHeaders: state.httpHeaders.map((header) =>
+            header.id === id ? { ...header, ...patch } : header,
+          ),
+        })),
+      removeHttpHeader: (id) =>
+        set((state) => ({
+          httpHeaders: state.httpHeaders.filter((header) => header.id !== id),
+        })),
       setSourceCode: (sourceCode) =>
         set((state) => ({
           sourceCode,
@@ -492,6 +533,14 @@ export function createEvaluatorSetupStore({
       setTestPanelOpen: (testPanelOpen) => set({ testPanelOpen }),
       applyDefinition: (definition) =>
         set((state) => {
+          if (definition.type === EvalTemplateTypeEnum.HTTP) {
+            return {
+              type: definition.type,
+              httpUrl: definition.url,
+              httpHeaders: buildInitialHttpHeaders(definition),
+              activeMapping: null,
+            };
+          }
           if (definition.type === EvalTemplateTypeEnum.CODE) {
             return {
               type: definition.type,

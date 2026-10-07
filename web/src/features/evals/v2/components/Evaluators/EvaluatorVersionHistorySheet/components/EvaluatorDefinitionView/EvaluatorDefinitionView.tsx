@@ -29,6 +29,7 @@ import { formatMappingLabel } from "@/src/features/evals/v2/fns/variableMapping/
 import { sourceCodeLanguageLabel } from "@/src/features/evals/v2/fns/evaluators/sourceCodeLanguageLabel";
 import { toScoreOutputFormState } from "@/src/features/evals/v2/fns/scoreOutput/toScoreOutputFormState";
 import type { JudgeModel } from "@/src/features/evals/v2/judgeModel";
+import { HttpEndpointEditor } from "@/src/features/evals/v2/components/Evaluators/Http/HttpEndpointEditor/HttpEndpointEditor";
 
 export type EvaluatorDefinition =
   | {
@@ -51,6 +52,11 @@ export type EvaluatorDefinition =
       questions: unknown;
       selectedModel: JudgeModel | null;
       variableMapping: ObservationVariableMapping[];
+    }
+  | {
+      type: Extract<EvalTemplateType, "HTTP">;
+      url: string;
+      headers: { name: string; value: string; secret: boolean }[];
     };
 
 // A saved version is immutable, so every control below is the live editing
@@ -278,5 +284,28 @@ export function EvaluatorDefinitionView({
       return <DecisionModelDefinitionView definition={definition} />;
     case EvalTemplateTypeEnum.LLM_AS_JUDGE:
       return <LlmEvaluatorDefinitionView definition={definition} />;
+    case EvalTemplateTypeEnum.HTTP:
+      return (
+        <div className="flex min-w-0 flex-col gap-4">
+          <EvaluationTypeConfiguration
+            mode={EvalTemplateTypeEnum.HTTP}
+            onModeChange={noop}
+            disabled
+          />
+          <HttpEndpointEditor
+            url={definition.url}
+            headers={definition.headers.map((header) => ({
+              ...header,
+              id: header.name,
+            }))}
+            storedSecretNames={definition.headers.map(({ name }) => name)}
+            onUrlChange={noop}
+            onHeaderChange={noop}
+            onAddHeader={noop}
+            onRemoveHeader={noop}
+            disabled
+          />
+        </div>
+      );
   }
 }

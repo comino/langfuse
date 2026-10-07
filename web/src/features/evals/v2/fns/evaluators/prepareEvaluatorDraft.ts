@@ -15,6 +15,8 @@ type EvaluatorSetupDraftState = Pick<
   | "stateKeys"
   | "sourceCode"
   | "sourceCodeLanguage"
+  | "httpUrl"
+  | "httpHeaders"
   | "scoreOutput"
   | "variableFields"
   | "modelMode"
@@ -42,6 +44,24 @@ export function prepareEvaluatorDraft(params: EvaluatorSetupDraftState) {
     }
     return [];
   })();
+
+  if (params.type === "HTTP") {
+    const url = params.httpUrl.trim();
+    const definition = url
+      ? {
+          type: params.type,
+          url,
+          headers: params.httpHeaders
+            .filter((header) => header.name.trim())
+            .map(({ name, value, secret }) => ({
+              name: name.trim(),
+              value,
+              secret,
+            })),
+        }
+      : null;
+    return { definition, mappings };
+  }
 
   if (params.type === "DECISION_MODEL") {
     const questions = draftsToQuestions(params.questions);

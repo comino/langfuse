@@ -30,6 +30,7 @@ import { EvaluatorSavedRuleFilterPreview } from "@/src/features/evals/v2/compone
 import { EvaluatorBackfillSettings } from "@/src/features/evals/v2/components/Evaluators/EvaluatorBackfillSettings/EvaluatorBackfillSettings";
 import { useEvaluatorSavedBackfill } from "@/src/features/evals/v2/components/Evaluators/EvaluatorSavedDialogContainer/hooks/useEvaluatorSavedBackfill";
 import type { createEvalOnboardingAnalytics } from "@/src/features/evals/v2/fns/createEvalOnboardingAnalytics";
+import { isFixedPayloadEvaluator } from "@/src/features/evals/v2/fns/evaluators/isFixedPayloadEvaluator";
 
 type Rule = RouterOutputs["evalsV2"]["rules"]["list"]["rules"][number];
 type DialogPhase = "saved" | "closing-saved" | "create-rule" | "closed";
@@ -590,7 +591,7 @@ export function EvaluatorSavedDialogContainer({
           : null
       }
     />
-  ) : evaluator.type !== EvalTemplateType.CODE ? (
+  ) : !isFixedPayloadEvaluator(evaluator.type) ? (
     <div className="space-y-2">
       <h3 className="text-sm font-bold">Cost estimate</h3>
       <p className="text-muted-foreground text-sm">

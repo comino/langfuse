@@ -118,6 +118,14 @@ function versionData(
         sourceCode: definition.sourceCode,
         sourceCodeLanguage: definition.sourceCodeLanguage,
       };
+    case EvalTemplateType.HTTP:
+      return {
+        ...commonVersionData,
+        httpUrl: definition.httpUrl,
+        httpRequestHeaders: definition.httpRequestHeaders,
+        httpDisplayHeaders: definition.httpDisplayHeaders,
+        httpSecretKey: definition.httpSecretKey,
+      };
   }
 }
 

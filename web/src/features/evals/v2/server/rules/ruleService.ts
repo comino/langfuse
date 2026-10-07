@@ -759,10 +759,13 @@ export class RuleService {
       if (!latestVersion) {
         throw new LangfuseNotFoundError("Evaluator version not found");
       }
-      if (evaluator.type === EvalTemplateType.CODE) {
+      if (
+        evaluator.type === EvalTemplateType.CODE ||
+        evaluator.type === EvalTemplateType.HTTP
+      ) {
         if (assignment.variableMapping !== null) {
           throw new InvalidRequestError(
-            "Code evaluator mappings are managed by Langfuse and cannot be provided.",
+            "Code and HTTP evaluator mappings are managed by Langfuse and cannot be provided.",
           );
         }
         return {

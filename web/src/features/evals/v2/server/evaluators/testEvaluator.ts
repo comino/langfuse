@@ -1,5 +1,6 @@
 import {
   getCodeEvalVariableMapping,
+  InvalidRequestError,
   observationVariableMappingList,
 } from "@langfuse/shared";
 import { decrypt } from "@langfuse/shared/encryption";
@@ -22,7 +23,9 @@ import {
   matchPricingTier,
   resolveConfiguredCodeEvalDispatcher,
   runCodeBasedEvaluationDispatch,
+  runHttpEvaluationDispatch,
   type DecisionModelRequest,
+  type HttpEvalEndpoint,
   type ExtractedVariable,
 } from "@langfuse/shared/src/server";
 import { getObservationForEvalById } from "@/src/features/evals/server/getObservationForEvalById";
@@ -42,6 +45,7 @@ export async function testEvaluator(params: {
   traceId: string;
   startTime: Date;
   shouldReadFromObservationsTable?: boolean;
+  httpEndpoint?: HttpEvalEndpoint;
 }) {
   const startedAt = Date.now();
   const observation = await getObservationForEvalById({
@@ -52,7 +56,7 @@ export async function testEvaluator(params: {
     shouldReadFromObservationsTable: params.shouldReadFromObservationsTable,
   });
   let variableMapping;
-  if (params.definition.type === "CODE") {
+  if (params.definition.type === "CODE" || params.definition.type === "HTTP") {
     variableMapping = getCodeEvalVariableMapping();
   } else if (params.definition.type === "DECISION_MODEL") {
     assertCompleteEvaluatorVariableMapping({
@@ -97,16 +101,21 @@ async function runEvaluatorTest(params: {
   orgId: string;
   projectId: string;
   evaluatorId: string;
+  traceId: string;
+  observationId: string;
   definition: NormalizedEvaluatorDefinition;
   variables: ExtractedVariable[];
   executionMetadata: Record<string, string>;
   evaluationContext: ReturnType<
     typeof buildEvalExecutionData
   >["evaluationContext"];
+  httpEndpoint?: HttpEvalEndpoint;
 }) {
   switch (params.definition.type) {
     case "CODE":
       return testCodeEvaluator({ ...params, definition: params.definition });
+    case "HTTP":
+      return testHttpEvaluator({ ...params, endpoint: params.httpEndpoint });
     case "DECISION_MODEL":
       return testDecisionModelEvaluator({
         projectId: params.projectId,
@@ -352,6 +361,36 @@ async function testCodeEvaluator(params: {
     jobExecutionId: executionTraceId,
     evaluator: { id: params.evaluatorId },
     version: params.definition,
+    extractedVariables: params.variables,
+    traceName: "Test evaluator",
+    metadata: params.executionMetadata,
+    evaluationContext: params.evaluationContext,
+  });
+}
+
+async function testHttpEvaluator(params: {
+  projectId: string;
+  evaluatorId: string;
+  traceId: string;
+  observationId: string;
+  endpoint?: HttpEvalEndpoint;
+  variables: ExtractedVariable[];
+  executionMetadata: Record<string, string>;
+  evaluationContext: ReturnType<
+    typeof buildEvalExecutionData
+  >["evaluationContext"];
+}) {
+  if (!params.endpoint) {
+    throw new InvalidRequestError("HTTP evaluator endpoint is missing");
+  }
+  const executionTraceId = createW3CTraceId();
+  return runHttpEvaluationDispatch({
+    projectId: params.projectId,
+    executionTraceId,
+    jobExecutionId: executionTraceId,
+    evaluator: { id: params.evaluatorId, name: "Test evaluator", version: 0 },
+    target: { traceId: params.traceId, observationId: params.observationId },
+    endpoint: params.endpoint,
     extractedVariables: params.variables,
     traceName: "Test evaluator",
     metadata: params.executionMetadata,

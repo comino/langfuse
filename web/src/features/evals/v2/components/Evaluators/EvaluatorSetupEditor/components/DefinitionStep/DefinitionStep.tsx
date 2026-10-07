@@ -9,6 +9,7 @@ type DefinitionStepProps = {
   onOpenChange: (open: boolean) => void;
   onTypeChange: (type: EvalTemplateType) => void;
   isEditing: boolean;
+  httpEnabled?: boolean;
 } & DefinitionStepContent;
 
 type DefinitionStepContent =
@@ -27,6 +28,10 @@ type DefinitionStepContent =
       type: "DECISION_MODEL";
       typeConfiguration: ReactNode;
       questionsEditor: ReactNode;
+    }
+  | {
+      type: "HTTP";
+      endpointEditor: ReactNode;
     };
 
 function DefinitionStepBody(props: DefinitionStepContent) {
@@ -42,6 +47,8 @@ function DefinitionStepBody(props: DefinitionStepContent) {
       return props.codeEditor;
     case "DECISION_MODEL":
       return props.questionsEditor;
+    case "HTTP":
+      return props.endpointEditor;
   }
 }
 
@@ -58,8 +65,9 @@ export function DefinitionStep(props: DefinitionStepProps) {
         mode={props.type}
         onModeChange={props.onTypeChange}
         disabled={props.isEditing}
+        httpEnabled={props.httpEnabled}
       >
-        {props.typeConfiguration}
+        {props.type !== "HTTP" && props.typeConfiguration}
       </EvaluationTypeConfiguration>
       <DefinitionStepBody {...props} />
     </Stepper>

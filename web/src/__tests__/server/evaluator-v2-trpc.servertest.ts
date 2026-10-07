@@ -229,6 +229,42 @@ describe("evalsV2 tRPC", () => {
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
+  it("requires the automations scope to configure or call HTTP evaluators", async () => {
+    const httpDefinition = {
+      type: "HTTP" as const,
+      url: "https://evals.example.com/score",
+      headers: [{ name: "x-api-key", value: "k1", secret: true }],
+    };
+    const member = createCallerWithProjectRole("MEMBER");
+
+    await expect(
+      member.evalsV2.create({
+        projectId,
+        name: "HTTP evaluator (member)",
+        description: null,
+        definition: httpDefinition,
+      }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(
+      member.evalsV2.test({
+        projectId,
+        evaluatorId: "evaluator-id",
+        definition: httpDefinition,
+        observationId: "o",
+        traceId: "t",
+        startTime: new Date(),
+      }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+
+    const created = await caller.evalsV2.create({
+      projectId,
+      name: "HTTP evaluator (admin)",
+      description: null,
+      definition: httpDefinition,
+    });
+    expect(created.signingSecret).toMatch(/^lf-whsec_[0-9a-f]{64}$/);
+  });
+
   it("paginates evaluator gallery results", async () => {
     const search = `Gallery pagination ${randomUUID()}`;
     const created = await Promise.all(
