@@ -3,6 +3,7 @@ import { useCallback, type RefObject } from "react";
 import { Code2, Globe, Scale, Search, Sparkles } from "lucide-react";
 import { EvalTemplateTypeEnum, type EvalTemplateType } from "@langfuse/shared";
 
+import { cn } from "@/src/utils/tailwind";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
 import { Skeleton } from "@/src/components/ui/skeleton";
@@ -144,7 +145,13 @@ export function EvaluatorGalleryView({
             ref={scrollContainerRef}
             className="min-h-0 flex-1 overflow-y-auto"
           >
-            <div className="bg-modal sticky top-0 z-10 flex flex-col items-stretch gap-2 border-b px-4 py-3 @2xl:flex-row @2xl:items-center">
+            <div
+              className={cn(
+                "bg-modal sticky top-0 z-10 flex flex-col items-stretch gap-2 border-b px-4 py-3",
+                // Four create buttons no longer fit beside the search.
+                !httpEnabled && "@2xl:flex-row @2xl:items-center",
+              )}
+            >
               <div className="relative min-w-0 flex-1">
                 <Search className="text-muted-foreground icon-base absolute top-1/2 left-2 -translate-y-1/2" />
                 <Input
@@ -155,7 +162,7 @@ export function EvaluatorGalleryView({
                   className="pl-8"
                 />
               </div>
-              <div className="flex flex-col gap-2 @sm:flex-row">
+              <div className="flex flex-col gap-2 @sm:flex-row @sm:flex-wrap">
                 <Button
                   type="button"
                   variant="secondary"

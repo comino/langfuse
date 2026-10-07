@@ -2,6 +2,7 @@ import { Code2, Globe, Scale, Sparkles } from "lucide-react";
 import { EvalTemplateTypeEnum, type EvalTemplateType } from "@langfuse/shared";
 
 import { Tabs } from "@/src/components/design-system/Tabs/Tabs";
+import { cn } from "@/src/utils/tailwind";
 import {
   Select,
   SelectContent,
@@ -54,10 +55,12 @@ export function EvaluationTypeToggle({
         (type) => httpEnabled || type.value !== EvalTemplateTypeEnum.HTTP,
       );
   const SelectedIcon = selectedType.icon;
+  // Four types no longer fit in one segmented row; use the dropdown instead.
+  const useDropdown = visibleTypes.length > 3;
 
   return (
     <>
-      <div className="min-w-52 flex-1 md:hidden">
+      <div className={cn("min-w-52 flex-1", !useDropdown && "md:hidden")}>
         <Select
           value={value}
           onValueChange={(mode) => onValueChange(mode as EvalTemplateType)}
@@ -85,7 +88,7 @@ export function EvaluationTypeToggle({
           </SelectContent>
         </Select>
       </div>
-      <div className="hidden md:block">
+      <div className={cn("hidden", !useDropdown && "md:block")}>
         <Tabs
           value={value}
           onValueChange={(mode) => onValueChange(mode as EvalTemplateType)}
